@@ -137,7 +137,7 @@ resources:
 
 	renderedFile := filepath.Join(tempDir, "helmx.2.patched.yaml")
 	klog.Infof("generating %s", renderedFile)
-	_, err := r.run(r.KustomizeBin(), "build", tempDir, "--output", renderedFile)
+	_, err := r.run(r.kustomizeBin(), "build", tempDir, "--output", renderedFile)
 	if err != nil {
 		return "", err
 	}

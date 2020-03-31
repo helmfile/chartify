@@ -15,10 +15,13 @@ import (
 type RunCommandFunc func(name string, args []string, stdout, stderr io.Writer, env map[string]string) error
 
 type Runner struct {
-	helmBin string
-	isHelm3 bool
+	// HelmBinary is the name or the path to `helm` command
+	HelmBinary string
 
-	kustomizeBin string
+	// KustomizeBinary is the name or the path to `kustomize` command
+	KustomizeBinary string
+
+	isHelm3    bool
 
 	RunCommand RunCommandFunc
 
@@ -35,7 +38,7 @@ type Option func(*Runner) error
 
 func HelmBin(b string) Option {
 	return func(r *Runner) error {
-		r.helmBin = b
+		r.HelmBinary = b
 		return nil
 	}
 }
@@ -49,14 +52,14 @@ func UseHelm3(u bool) Option {
 
 func New(opts ...Option) *Runner {
 	r := &Runner{
-		kustomizeBin: "",
-		RunCommand:   RunCommand,
-		CopyFile:     CopyFile,
-		WriteFile:    ioutil.WriteFile,
-		ReadFile:     ioutil.ReadFile,
-		ReadDir:      ioutil.ReadDir,
-		Walk:         filepath.Walk,
-		Exists:       exists,
+		KustomizeBinary: "",
+		RunCommand:      RunCommand,
+		CopyFile:        CopyFile,
+		WriteFile:       ioutil.WriteFile,
+		ReadFile:        ioutil.ReadFile,
+		ReadDir:         ioutil.ReadDir,
+		Walk:            filepath.Walk,
+		Exists:          exists,
 		MakeTempDir: func() string {
 			return mkRandomDir(os.TempDir())
 		},
@@ -71,16 +74,16 @@ func New(opts ...Option) *Runner {
 	return r
 }
 
-func (r *Runner) HelmBin() string {
-	if r.helmBin != "" {
-		return r.helmBin
+func (r *Runner) helmBin() string {
+	if r.HelmBinary != "" {
+		return r.HelmBinary
 	}
 	return os.Getenv("HELM_BIN")
 }
 
-func (r *Runner) KustomizeBin() string {
-	if r.kustomizeBin != "" {
-		return r.kustomizeBin
+func (r *Runner) kustomizeBin() string {
+	if r.KustomizeBinary != "" {
+		return r.KustomizeBinary
 	}
 	return "kustomize"
 }
@@ -142,7 +145,7 @@ func (r *Runner) IsHelm3() bool {
 	}
 
 	// Autodetect from `helm verison`
-	out, err := r.run(r.HelmBin(), "version", "--client", "--short")
+	out, err := r.run(r.helmBin(), "version", "--client", "--short")
 	if err != nil {
 		panic(err)
 	}
