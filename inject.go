@@ -2,7 +2,6 @@ package chartify
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 )
 
@@ -25,7 +24,7 @@ func (r *Runner) Inject(files []string, o InjectOpts) error {
 				flagsTemplate += flagSplit[0]
 			case 2:
 				key, val := flagSplit[0], flagSplit[1]
-				flagsTemplate += CreateFlagChain(key, []string{val})
+				flagsTemplate += createFlagChain(key, []string{val})
 			default:
 				return fmt.Errorf("inject-flags must be in the form of key1=value1[,key2=value2,...]: %v", flag)
 			}
@@ -33,11 +32,11 @@ func (r *Runner) Inject(files []string, o InjectOpts) error {
 		for _, file := range files {
 			flags := strings.Replace(flagsTemplate, "FILE", file, 1)
 			command := fmt.Sprintf("%s %s", injector, flags)
-			stdout, stderr, err := r.DeprecatedCaptureBytes(command)
+			stdout, err := r.runBytes(command)
 			if err != nil {
-				return fmt.Errorf(string(stderr))
+				return err
 			}
-			if err := ioutil.WriteFile(file, stdout, 0644); err != nil {
+			if err := r.WriteFile(file, stdout, 0644); err != nil {
 				return err
 			}
 		}
@@ -47,11 +46,11 @@ func (r *Runner) Inject(files []string, o InjectOpts) error {
 		for _, file := range files {
 			cmd := strings.Replace(tmpl, "FILE", file, 1)
 
-			stdout, stderr, err := r.DeprecatedCaptureBytes(cmd)
+			stdout, err := r.runBytes(cmd)
 			if err != nil {
-				return fmt.Errorf(string(stderr))
+				return err
 			}
-			if err := ioutil.WriteFile(file, stdout, 0644); err != nil {
+			if err := r.WriteFile(file, stdout, 0644); err != nil {
 				return err
 			}
 		}

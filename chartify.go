@@ -2,7 +2,7 @@ package chartify
 
 import (
 	"fmt"
-	"io/ioutil"
+	"github.com/otiai10/copy"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
@@ -83,7 +83,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	isKustomization, err := exists(filepath.Join(dirOrChart, "kustomization.yaml"))
+	isKustomization, err := r.Exists(filepath.Join(dirOrChart, "kustomization.yaml"))
 	if err != nil {
 		return "", err
 	}
@@ -95,10 +95,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			return "", err
 		}
 	} else {
-		tempDir = mkRandomDir(os.TempDir())
+		tempDir = r.MakeTempDir()
 	}
 
-	isChart, err := exists(filepath.Join(tempDir, "Chart.yaml"))
+	isChart, err := r.Exists(filepath.Join(tempDir, "Chart.yaml"))
 	if err != nil {
 		return "", err
 	}
@@ -106,7 +106,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	generatedManifestFiles := []string{}
 
 	dstTemplatesDir := filepath.Join(tempDir, "templates")
-	dirExists, err := exists(dstTemplatesDir)
+	dirExists, err := r.Exists(dstTemplatesDir)
 	if err != nil {
 		return "", err
 	}
@@ -150,11 +150,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			klog.Infof("using the default chart version 1.0.0 due to that no ChartVersion is specified")
 		}
 		chartyaml := fmt.Sprintf("name: \"%s\"\nversion: %s\nappVersion: %s\n", release, ver, ver)
-		if err := ioutil.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
+		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
 			return "", err
 		}
 	} else {
-		bytes, err := ioutil.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
+		bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
 		if os.IsNotExist(err) {
 			requirementsYamlContent = `dependencies:`
 		} else if err != nil {
@@ -191,7 +191,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 
 		var repoUrl string
-		out, err := r.Run(r.HelmBin(), "repo", "list")
+		out, err := r.run(r.HelmBin(), "repo", "list")
 		if err != nil {
 			return "", err
 		}
@@ -224,12 +224,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 `, ver)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(tempDir, "requirements.yaml"), []byte(requirementsYamlContent), 0644); err != nil {
+	if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), []byte(requirementsYamlContent), 0644); err != nil {
 		return "", err
 	}
 
 	{
-		debugOut, err := ioutil.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
+		debugOut, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
 		if err != nil {
 			return "", err
 		}
@@ -239,7 +239,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	{
 		// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
 		// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-		_, err := r.Run(r.HelmBin(), "dependency", "build", tempDir)
+		_, err := r.run(r.HelmBin(), "dependency", "build", tempDir)
 		if err != nil {
 			return "", err
 		}
@@ -296,7 +296,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 			final := filepath.Join(tempDir, "templates", "helmx.all.yaml")
 			klog.Infof("copying %s to %s", patchedAndConcatenated, final)
-			if err := CopyFile(patchedAndConcatenated, final); err != nil {
+			if err := r.CopyFile(patchedAndConcatenated, final); err != nil {
 				return "", err
 			}
 		} else {
@@ -321,4 +321,41 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	return tempDir, nil
+}
+
+// copyToTempDir checks if the path is local or a repo (in this order) and copies it to a temp directory
+// It will perform a `helm fetch` if required
+func (r *Runner) copyToTempDir(path string) (string, error) {
+	tempDir := r.MakeTempDir()
+	exists, err := r.Exists(path)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return r.fetchAndUntarUnderDir(path, tempDir)
+	}
+	err = copy.Copy(path, tempDir)
+	if err != nil {
+		return "", err
+	}
+	return tempDir, nil
+}
+
+func (r *Runner) fetchAndUntarUnderDir(path, tempDir string) (string, error) {
+	command := fmt.Sprintf("helm fetch %s --untar -d %s", path, tempDir)
+
+	if _, err := r.run(command); err != nil {
+		return "", err
+	}
+
+	files, err := r.ReadDir(tempDir)
+	if err != nil {
+		return "", err
+	}
+
+	if len(files) != 1 {
+		return "", fmt.Errorf("%d additional files found in temp direcotry. This is very strange", len(files)-1)
+	}
+
+	return filepath.Join(tempDir, files[0].Name()), nil
 }

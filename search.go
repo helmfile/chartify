@@ -2,7 +2,6 @@ package chartify
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -16,7 +15,7 @@ type SearchFileOpts struct {
 func (r *Runner) SearchFiles(o SearchFileOpts) ([]string, error) {
 	var files []string
 
-	err := filepath.Walk(o.basePath, func(path string, info os.FileInfo, err error) error {
+	err := r.Walk(o.basePath, func(path string, info os.FileInfo, err error) error {
 		if !strings.Contains(path, o.matchSubPath+"/") {
 			return nil
 		}

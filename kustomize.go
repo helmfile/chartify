@@ -1,13 +1,12 @@
 package chartify
 
 import (
-"fmt"
-"io/ioutil"
-"os"
-"path"
-"path/filepath"
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 
-"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 type KustomizeOpts struct {
@@ -39,8 +38,8 @@ func (img KustomizeImage) String() string {
 }
 
 type KustomizeBuildOpts struct {
-	ValuesFiles []string
-	SetValues   []string
+	ValuesFiles        []string
+	SetValues          []string
 	EnableAlphaPlugins bool
 }
 
@@ -64,7 +63,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 
 	for _, f := range u.ValuesFiles {
-		valsFileContent, err := ioutil.ReadFile(f)
+		valsFileContent, err := r.ReadFile(f)
 		if err != nil {
 			return "", err
 		}
@@ -99,7 +98,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		return "", err
 	}
 	baseFile := []byte("bases:\n- " + relPath + "\n")
-	if err := ioutil.WriteFile(path.Join(tempDir, "kustomization.yaml"), baseFile, 0644); err != nil {
+	if err := r.WriteFile(path.Join(tempDir, "kustomization.yaml"), baseFile, 0644); err != nil {
 		return "", err
 	}
 
@@ -108,13 +107,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		for _, image := range kustomizeOpts.Images {
 			args = append(args, image.String())
 		}
-		_, err := r.Run("kustomize", args...)
+		_, err := r.run(r.KustomizeBin(), args...)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.NamePrefix != "" {
-		_, err := r.Run("kustomize", "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
+		_, err := r.run(r.KustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
 		if err != nil {
 			fmt.Println(err)
 			return "", err
@@ -122,13 +121,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 	if kustomizeOpts.NameSuffix != "" {
 		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
-		_, err := r.Run("kustomize", "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
+		_, err := r.run(r.KustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.Namespace != "" {
-		_, err := r.Run("kustomize", "edit", "set", "namespace", kustomizeOpts.Namespace)
+		_, err := r.run(r.KustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
 			return "", err
 		}
@@ -138,7 +137,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	if u.EnableAlphaPlugins {
 		kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
 	}
-	out, err := r.Run("kustomize", append(kustomizeArgs, tempDir)...)
+	out, err := r.run(r.KustomizeBin(), append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return "", err
 	}
@@ -146,4 +145,3 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 	return kustomizeFile, nil
 }
-

@@ -3,7 +3,6 @@ package chartify
 import (
 	"fmt"
 
-	//"io/ioutil"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
@@ -29,18 +28,18 @@ type ReplaceWithRenderedOpts struct {
 
 func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o ReplaceWithRenderedOpts) ([]string, error) {
 	var additionalFlags string
-	additionalFlags += CreateFlagChain("set", o.SetValues)
+	additionalFlags += createFlagChain("set", o.SetValues)
 	defaultValuesPath := filepath.Join(chart, "values.yaml")
-	exists, err := exists(defaultValuesPath)
+	exists, err := r.Exists(defaultValuesPath)
 	if err != nil {
 		return nil, err
 	}
 	if exists {
-		additionalFlags += CreateFlagChain("f", []string{defaultValuesPath})
+		additionalFlags += createFlagChain("f", []string{defaultValuesPath})
 	}
-	additionalFlags += CreateFlagChain("f", o.ValuesFiles)
+	additionalFlags += createFlagChain("f", o.ValuesFiles)
 	if o.Namespace != "" {
-		additionalFlags += CreateFlagChain("namespace", []string{o.Namespace})
+		additionalFlags += createFlagChain("namespace", []string{o.Namespace})
 	}
 
 	klog.Infof("options: %v", o)
@@ -58,20 +57,18 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.HelmBin(), o.Debug, chart, name, additionalFlags, dir)
 	}
 
-	stdout, stderr, err := r.DeprecatedCaptureBytes(command)
+	stdout, err := r.run(command)
 	if err != nil {
-		if len(stderr) != 0 {
-			return nil, fmt.Errorf(string(stderr))
-		}
-		return nil, fmt.Errorf("unexpected error with no stderr contents: %s", stdout)
+		return nil, err
 	}
 	results := []string{}
-	lines := strings.Split(string(stdout), "\n")
+	lines := strings.Split(stdout, "\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "wrote ") {
 			results = append(results, strings.Split(line, "wrote ")[1])
 		}
 	}
+
 	if len(results) == 0 {
 		return nil, fmt.Errorf("invalid state: no files rendered")
 	}

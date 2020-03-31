@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
@@ -50,7 +49,7 @@ resources:
 		kustomizationYamlContent += `patchesJson6902:
 `
 		for i, f := range u.JsonPatches {
-			fileBytes, err := ioutil.ReadFile(f)
+			fileBytes, err := r.ReadFile(f)
 			if err != nil {
 				return "", err
 			}
@@ -100,7 +99,7 @@ resources:
 					return "", err
 				}
 				klog.Infof("%s:\n%s", path, jsonPatchData)
-				if err := ioutil.WriteFile(abspath, jsonPatchData, 0644); err != nil {
+				if err := r.WriteFile(abspath, jsonPatchData, 0644); err != nil {
 					return "", err
 				}
 			} else {
@@ -114,7 +113,7 @@ resources:
 		kustomizationYamlContent += `patchesStrategicMerge:
 `
 		for i, f := range u.StrategicMergePatches {
-			bytes, err := ioutil.ReadFile(f)
+			bytes, err := r.ReadFile(f)
 			if err != nil {
 				return "", err
 			}
@@ -123,14 +122,14 @@ resources:
 			if err := os.Mkdir(filepath.Dir(abspath), 0755); err != nil {
 				return "", err
 			}
-			if err := ioutil.WriteFile(abspath, bytes, 0644); err != nil {
+			if err := r.WriteFile(abspath, bytes, 0644); err != nil {
 				return "", err
 			}
 			kustomizationYamlContent += `- ` + path + "\n"
 		}
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(tempDir, "kustomization.yaml"), []byte(kustomizationYamlContent), 0644); err != nil {
+	if err := r.WriteFile(filepath.Join(tempDir, "kustomization.yaml"), []byte(kustomizationYamlContent), 0644); err != nil {
 		return "", err
 	}
 
@@ -138,7 +137,7 @@ resources:
 
 	renderedFile := filepath.Join(tempDir, "helmx.2.patched.yaml")
 	klog.Infof("generating %s", renderedFile)
-	_, err := r.Run("kustomize", "build", tempDir, "--output", renderedFile)
+	_, err := r.run(r.KustomizeBin(), "build", tempDir, "--output", renderedFile)
 	if err != nil {
 		return "", err
 	}

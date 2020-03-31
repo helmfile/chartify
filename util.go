@@ -1,8 +1,11 @@
 package chartify
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-func CreateFlagChain(flag string, input []string) string {
+func createFlagChain(flag string, input []string) string {
 	chain := ""
 	dashes := "--"
 	if len(flag) == 1 {
@@ -17,4 +20,27 @@ func CreateFlagChain(flag string, input []string) string {
 	}
 
 	return chain
+}
+
+// indents a block of text with an indent string
+func indent(text, indent string) string {
+	var b strings.Builder
+
+	b.Grow(len(text) * 2)
+
+	lines := strings.Split(text, "\n")
+
+	last := len(lines) - 1
+
+	for i, j := range lines {
+		if i > 0 && i < last && j != "" {
+			b.WriteString("\n")
+		}
+
+		if j != "" {
+			b.WriteString(indent + j)
+		}
+	}
+
+	return b.String()
 }
