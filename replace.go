@@ -50,7 +50,14 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		return nil, err
 	}
 
-	command := fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.HelmBin(), o.Debug, chart, name, additionalFlags, dir)
+	var command string
+
+	if r.isHelm3 {
+		command = fmt.Sprintf("%s template --debug=%v --output-dir %s %s %s", r.HelmBin(), o.Debug, additionalFlags, dir, chart, name)
+	} else {
+		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.HelmBin(), o.Debug, chart, name, additionalFlags, dir)
+	}
+
 	stdout, stderr, err := r.DeprecatedCaptureBytes(command)
 	if err != nil {
 		if len(stderr) != 0 {
