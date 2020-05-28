@@ -61,15 +61,16 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 	if err != nil {
 		return nil, err
 	}
-	results := []string{}
+	writtenFiles := map[string]bool{}
 	lines := strings.Split(stdout, "\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "wrote ") {
-			results = append(results, strings.Split(line, "wrote ")[1])
+			file := strings.Split(line, "wrote ")[1]
+			writtenFiles[file] = true
 		}
 	}
 
-	if len(results) == 0 {
+	if len(writtenFiles) == 0 {
 		return nil, fmt.Errorf("invalid state: no files rendered")
 	}
 
@@ -80,5 +81,9 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		}
 	}
 
+	results := make([]string, 0, len(writtenFiles))
+	for f := range writtenFiles {
+		results = append(results, f)
+	}
 	return results, nil
 }
