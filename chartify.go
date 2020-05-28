@@ -90,7 +90,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	var tempDir string
 	if !isKustomization {
-		tempDir, err = r.copyToTempDir(dirOrChart)
+		tempDir, err = r.copyToTempDir(dirOrChart, u.ChartVersion)
 		if err != nil {
 			return "", err
 		}
@@ -325,14 +325,14 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 // copyToTempDir checks if the path is local or a repo (in this order) and copies it to a temp directory
 // It will perform a `helm fetch` if required
-func (r *Runner) copyToTempDir(path string) (string, error) {
+func (r *Runner) copyToTempDir(path, chartVersion string) (string, error) {
 	tempDir := r.MakeTempDir()
 	exists, err := r.Exists(path)
 	if err != nil {
 		return "", err
 	}
 	if !exists {
-		return r.fetchAndUntarUnderDir(path, tempDir)
+		return r.fetchAndUntarUnderDir(path, tempDir, chartVersion)
 	}
 	err = copy.Copy(path, tempDir)
 	if err != nil {
@@ -341,8 +341,12 @@ func (r *Runner) copyToTempDir(path string) (string, error) {
 	return tempDir, nil
 }
 
-func (r *Runner) fetchAndUntarUnderDir(path, tempDir string) (string, error) {
-	command := fmt.Sprintf("helm fetch %s --untar -d %s", path, tempDir)
+func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (string, error) {
+	command := fmt.Sprintf("helm fetch %s --untar -d %s", chart, tempDir)
+
+	if chartVersion != "" {
+		command += fmt.Sprintf(" --version %s", chartVersion)
+	}
 
 	if _, err := r.run(command); err != nil {
 		return "", err

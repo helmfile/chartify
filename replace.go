@@ -42,10 +42,6 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		additionalFlags += createFlagChain("namespace", []string{o.Namespace})
 	}
 
-	if o.ChartVersion != "" {
-		additionalFlags += createFlagChain("version", []string{o.ChartVersion})
-	}
-
 	klog.Infof("options: %v", o)
 
 	dir := filepath.Join(chart, "helmx.1.rendered")
