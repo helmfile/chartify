@@ -95,8 +95,10 @@ resources:
 				jsonPatchData := buf.Bytes()
 				path = filepath.Join("jsonpatches", fmt.Sprintf("patch.%d.yaml", i))
 				abspath := filepath.Join(tempDir, path)
-				if err := os.Mkdir(filepath.Dir(abspath), 0755); err != nil {
-					return "", err
+				if i == 0 {
+					if err := os.Mkdir(filepath.Dir(abspath), 0755); err != nil {
+						return "", err
+					}
 				}
 				klog.Infof("%s:\n%s", path, jsonPatchData)
 				if err := r.WriteFile(abspath, jsonPatchData, 0644); err != nil {
