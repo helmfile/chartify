@@ -15,6 +15,7 @@ func TestIntegration(t *testing.T) {
 		release string
 		chart   string
 		opts    ChartifyOpts
+		expectedOutputFilename string
 	}{
 		{
 			release: "testrelease",
@@ -33,6 +34,29 @@ func TestIntegration(t *testing.T) {
 				JsonPatches:                 nil,
 				StrategicMergePatches:       nil,
 			},
+			expectedOutputFilename: "templates/0-kustomized.yaml",
+		},
+		{
+			release: "testrelease",
+			chart:   "testdata/helm-chart",
+			opts: ChartifyOpts{
+				Debug:                       false,
+				ValuesFiles:                 nil,
+				SetValues:                   nil,
+				Namespace:                   "",
+				ChartVersion:                "",
+				TillerNamespace:             "",
+				EnableKustomizeAlphaPlugins: false,
+				Injectors:                   nil,
+				Injects:                     nil,
+				AdhocChartDependencies:      nil,
+				JsonPatches:                 []string{
+					"testdata/helm-chart/patch.myapp.yaml",
+					"testdata/helm-chart/patch.mysql.yaml",
+				},
+				StrategicMergePatches:       nil,
+			},
+			expectedOutputFilename: "templates/helmx.all.yaml",
 		},
 	}
 
@@ -55,7 +79,7 @@ func TestIntegration(t *testing.T) {
 			t.Error(err)
 		}
 
-		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, "templates/0-kustomized.yaml")); err != nil {
+		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, tc.expectedOutputFilename)); err != nil {
 			t.Error(err)
 		}
 	}

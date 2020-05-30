@@ -1,0 +1,4 @@
+apiVersion: v1
+description: Chart for testing chart-specific features
+name: helm-chart
+version: 0.1.0

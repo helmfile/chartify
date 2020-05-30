@@ -1,0 +1,9 @@
+target:
+  version: v1
+  kind: ConfigMap
+  name: mysql
+patch:
+- op: add
+  path: /metadata/annotations
+  value:
+    foo: bar
