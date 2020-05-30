@@ -1,0 +1,4 @@
+apiVersion: v1
+description: Chart for specifying as a dependency in ../helm-chart
+name: subchart
+version: 0.1.0
