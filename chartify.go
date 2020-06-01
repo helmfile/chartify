@@ -43,6 +43,11 @@ type ChartifyOpts struct {
 
 	JsonPatches           []string
 	StrategicMergePatches []string
+
+	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
+	// workaround the potential helm issue
+	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
+	WorkaroundOutputDirIssue bool
 }
 
 type ChartifyOption interface {
@@ -118,8 +123,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	if isKustomization {
 		kustomOpts := &KustomizeBuildOpts{
-			ValuesFiles: u.ValuesFiles,
-			SetValues:   u.SetValues,
+			ValuesFiles:        u.ValuesFiles,
+			SetValues:          u.SetValues,
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
 		}
 		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomOpts)
@@ -266,6 +271,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				SetValues:    u.SetValues,
 				ValuesFiles:  u.ValuesFiles,
 				ChartVersion: u.ChartVersion,
+
+				WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
 			}
 			generated, err := r.ReplaceWithRendered(release, tempDir, templateFiles, templateOptions)
 			if err != nil {

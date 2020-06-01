@@ -24,6 +24,11 @@ type ReplaceWithRenderedOpts struct {
 
 	// ChartVersion is the semver of the Helm chart being used to render the original K8s manifests before various tweaks applied by helm-x
 	ChartVersion string
+
+	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
+	// workaround the potential helm issue
+	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
+	WorkaroundOutputDirIssue bool
 }
 
 func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o ReplaceWithRenderedOpts) ([]string, error) {
@@ -52,7 +57,13 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 	var command string
 
 	if r.isHelm3 {
-		command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
+		if o.WorkaroundOutputDirIssue {
+			templatePath := filepath.Join(dir, filepath.Base(chart), "templates", "all.yaml")
+
+			command = fmt.Sprintf("%s template --debug=%v %s %s %s > %s", r.helmBin(), o.Debug, additionalFlags, name, chart, templatePath)
+		} else {
+			command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
+		}
 	} else {
 		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chart, name, additionalFlags, dir)
 	}
