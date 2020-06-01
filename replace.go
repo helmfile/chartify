@@ -60,6 +60,10 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		if o.WorkaroundOutputDirIssue {
 			templatePath := filepath.Join(dir, filepath.Base(chart), "templates", "all.yaml")
 
+			if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
+				return nil, err
+			}
+
 			command = fmt.Sprintf("%s template --debug=%v %s %s %s > %s", r.helmBin(), o.Debug, additionalFlags, name, chart, templatePath)
 		} else {
 			command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
