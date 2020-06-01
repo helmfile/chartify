@@ -66,7 +66,7 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 			return nil, err
 		}
 
-		command = fmt.Sprintf("%s template --debug=%v %s %s %s", r.helmBin(), o.Debug, additionalFlags, name, chart)
+		command = fmt.Sprintf("%s template --debug=%v%s %s %s", r.helmBin(), o.Debug, additionalFlags, name, chart)
 
 		stdout, err := r.run(command)
 		if err != nil {
