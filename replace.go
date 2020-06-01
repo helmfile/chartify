@@ -2,6 +2,7 @@ package chartify
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"k8s.io/klog"
 	"os"
@@ -56,32 +57,45 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 
 	var command string
 
-	if r.isHelm3 {
-		if o.WorkaroundOutputDirIssue {
-			templatePath := filepath.Join(dir, filepath.Base(chart), "templates", "all.yaml")
-
-			if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
-				return nil, err
-			}
-
-			command = fmt.Sprintf("%s template --debug=%v %s %s %s > %s", r.helmBin(), o.Debug, additionalFlags, name, chart, templatePath)
-		} else {
-			command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
-		}
-	} else {
-		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chart, name, additionalFlags, dir)
-	}
-
-	stdout, err := r.run(command)
-	if err != nil {
-		return nil, err
-	}
 	writtenFiles := map[string]bool{}
-	lines := strings.Split(stdout, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "wrote ") {
-			file := strings.Split(line, "wrote ")[1]
-			writtenFiles[file] = true
+
+	if r.isHelm3 && o.WorkaroundOutputDirIssue {
+		templatePath := filepath.Join(dir, filepath.Base(chart), "templates", "all.yaml")
+
+		if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
+			return nil, err
+		}
+
+		command = fmt.Sprintf("%s template --debug=%v %s %s %s", r.helmBin(), o.Debug, additionalFlags, name, chart)
+
+		stdout, err := r.run(command)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := ioutil.WriteFile(templatePath, []byte(stdout), 0644); err != nil {
+			return nil, err
+		}
+
+		writtenFiles[templatePath] = true
+	} else {
+		if r.isHelm3 {
+			command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
+		} else {
+			command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chart, name, additionalFlags, dir)
+		}
+
+		stdout, err := r.run(command)
+		if err != nil {
+			return nil, err
+		}
+
+		lines := strings.Split(stdout, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "wrote ") {
+				file := strings.Split(line, "wrote ")[1]
+				writtenFiles[file] = true
+			}
 		}
 	}
 
