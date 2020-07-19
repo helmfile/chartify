@@ -144,7 +144,21 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		if err != nil {
 			return "", err
 		}
-		generatedManifestFiles = append(generatedManifestFiles, manifestFiles...)
+
+		for i, path := range manifestFiles {
+			dst := filepath.Join(tempDir, fmt.Sprintf("%d-%s", i, filepath.Base(path)))
+
+			content, err := r.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+
+			if err := r.WriteFile(dst, content, 0644); err != nil {
+				return "", err
+			}
+
+			generatedManifestFiles = append(generatedManifestFiles, dst)
+		}
 	}
 
 	var requirementsYamlContent string
@@ -289,6 +303,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	_ = os.Remove(filepath.Join(tempDir, "requirements.lock"))
 
 	{
+		dstFilesDir := filepath.Join(tempDir, "files")
+
 		if isChart && (len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0) {
 			patchOpts := &PatchOpts{
 				JsonPatches:           u.JsonPatches,
@@ -301,7 +317,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 			generatedManifestFiles = []string{patchedAndConcatenated}
 
-			final := filepath.Join(tempDir, "templates", "helmx.all.yaml")
+			final := filepath.Join(dstFilesDir, "helmx.all.yaml")
 			klog.Infof("copying %s to %s", patchedAndConcatenated, final)
 			if err := r.CopyFile(patchedAndConcatenated, final); err != nil {
 				return "", err
@@ -309,13 +325,25 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		} else {
 			dsts := []string{}
 			for i, f := range generatedManifestFiles {
-				dst := filepath.Join(dstTemplatesDir, fmt.Sprintf("%d-%s", i, filepath.Base(f)))
+				dst := filepath.Join(dstFilesDir, fmt.Sprintf("%d-%s", i, filepath.Base(f)))
 				if err := os.Rename(f, dst); err != nil {
 					return "", err
 				}
 				dsts = append(dsts, dst)
 			}
 			generatedManifestFiles = dsts
+		}
+
+
+		content := []byte(`{{ $files := .Files -}}
+{{ range $path, $content :=  .Files.Glob  "files/**.yaml" -}}
+---
+{{ $files.Get $path }}
+{{ end }}
+`)
+
+		if err := r.WriteFile(filepath.Join(dstTemplatesDir, "helmx.all.yaml"), content, 0644); err != nil {
+			return "", err
 		}
 	}
 
