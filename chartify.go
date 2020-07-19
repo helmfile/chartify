@@ -304,6 +304,9 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	{
 		dstFilesDir := filepath.Join(tempDir, "files")
+		if err := os.MkdirAll(dstFilesDir, 0755); err != nil {
+			return "", err
+		}
 
 		if isChart && (len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0) {
 			patchOpts := &PatchOpts{
