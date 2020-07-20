@@ -298,9 +298,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	// We've already rendered resources from the chart and its subcharts to the helmx.1.rendered directory
-	// No need to double-render them by leaving requirements.yaml/lock
+	// No need to double-render them by leaving requirements.yaml/lock and downloaded sub-charts
 	_ = os.Remove(filepath.Join(tempDir, "requirements.yaml"))
 	_ = os.Remove(filepath.Join(tempDir, "requirements.lock"))
+	_ = os.RemoveAll(filepath.Join(tempDir, "charts"))
 
 	{
 		dstFilesDir := filepath.Join(tempDir, "files")
