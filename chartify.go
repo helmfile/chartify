@@ -171,22 +171,22 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
 			return "", err
 		}
+	}
+
+	bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
+	if os.IsNotExist(err) {
+		requirementsYamlContent = `dependencies:`
+	} else if err != nil {
+		return "", err
 	} else {
-		bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
-		if os.IsNotExist(err) {
-			requirementsYamlContent = `dependencies:`
-		} else if err != nil {
+		parsed := map[string]interface{}{}
+		if err := yaml.Unmarshal(bytes, &parsed); err != nil {
 			return "", err
-		} else {
-			parsed := map[string]interface{}{}
-			if err := yaml.Unmarshal(bytes, &parsed); err != nil {
-				return "", err
-			}
-			if _, ok := parsed["dependencies"]; !ok {
-				bytes = []byte(`dependencies:`)
-			}
-			requirementsYamlContent = string(bytes)
 		}
+		if _, ok := parsed["dependencies"]; !ok {
+			bytes = []byte(`dependencies:`)
+		}
+		requirementsYamlContent = string(bytes)
 	}
 
 	for _, d := range u.AdhocChartDependencies {
