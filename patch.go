@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +33,7 @@ func (r *Runner) Patch(tempDir string, generatedManifestFiles []string, opts ...
 		}
 	}
 
-	klog.Infof("patching files: %v", generatedManifestFiles)
+	r.Logf("patching files: %v", generatedManifestFiles)
 
 	kustomizationYamlContent := `kind: ""
 apiversion: ""
@@ -98,7 +97,7 @@ resources:
 				if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
 					return "", err
 				}
-				klog.Infof("%s:\n%s", path, jsonPatchData)
+				r.Logf("%s:\n%s", path, jsonPatchData)
 				if err := r.WriteFile(abspath, jsonPatchData, 0644); err != nil {
 					return "", err
 				}
@@ -133,17 +132,17 @@ resources:
 		return "", err
 	}
 
-	klog.Infof("generated and using kustomization.yaml:\n%s", kustomizationYamlContent)
+	r.Logf("generated and using kustomization.yaml:\n%s", kustomizationYamlContent)
 
 	renderedFile := filepath.Join(tempDir, "helmx.2.patched.yaml")
-	klog.Infof("generating %s", renderedFile)
+	r.Logf("generating %s", renderedFile)
 	_, err := r.run(r.kustomizeBin(), "build", tempDir, "--output", renderedFile)
 	if err != nil {
 		return "", err
 	}
 
 	for _, f := range generatedManifestFiles {
-		klog.Infof("removing %s", f)
+		r.Logf("removing %s", f)
 		if err := os.Remove(f); err != nil {
 			return "", err
 		}

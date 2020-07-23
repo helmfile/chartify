@@ -3,7 +3,6 @@ package chartify
 import (
 	"fmt"
 	"github.com/otiai10/copy"
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -166,7 +165,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		ver := u.ChartVersion
 		if u.ChartVersion == "" {
 			ver = "1.0.0"
-			klog.Infof("using the default chart version 1.0.0 due to that no ChartVersion is specified")
+			r.Logf("using the default chart version 1.0.0 due to that no ChartVersion is specified")
 		}
 		chartyaml := fmt.Sprintf("name: \"%s\"\nversion: %s\nappVersion: %s\n", release, ver, ver)
 		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
@@ -252,7 +251,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		if err != nil {
 			return "", err
 		}
-		klog.Infof("using requirements.yaml:\n%s", debugOut)
+		r.Logf("using requirements.yaml:\n%s", debugOut)
 	}
 
 	{
@@ -322,7 +321,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			generatedManifestFiles = []string{patchedAndConcatenated}
 
 			final := filepath.Join(dstFilesDir, "helmx.all.yaml")
-			klog.Infof("copying %s to %s", patchedAndConcatenated, final)
+			r.Logf("copying %s to %s", patchedAndConcatenated, final)
 			if err := r.CopyFile(patchedAndConcatenated, final); err != nil {
 				return "", err
 			}
@@ -337,7 +336,6 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			}
 			generatedManifestFiles = dsts
 		}
-
 
 		content := []byte(`{{ $files := .Files -}}
 {{ range $path, $content :=  .Files.Glob  "files/**.yaml" -}}

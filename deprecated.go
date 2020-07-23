@@ -30,4 +30,3 @@ func (r *Runner) untarUnderDir(path, tempDir string) (string, error) {
 	}
 	return filepath.Join(tempDir, files[0].Name()), nil
 }
-

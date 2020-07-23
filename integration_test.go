@@ -1,12 +1,28 @@
 package chartify
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func errWithFiles(err error, tmpDir string) error {
+	files := []string{}
+
+	globErr := filepath.Walk(tmpDir, func(path string, f os.FileInfo, err error) error {
+		files = append(files, path)
+
+		return nil
+	})
+	if globErr != nil {
+		return fmt.Errorf("augumenting original error %v with files under %q: %v", err, tmpDir, globErr)
+	}
+
+	return fmt.Errorf("%v\n\nLISTING FILES:\n%s", err, strings.Join(files, "\n"))
+}
 
 func TestIntegration(t *testing.T) {
 	r := New(UseHelm3(true), HelmBin("helm"))
@@ -52,11 +68,15 @@ func TestIntegration(t *testing.T) {
 		}
 
 		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, "kustomization.yaml")); err != nil {
-			t.Error(err)
+			t.Error(errWithFiles(err, tmpDir))
 		}
 
-		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, "templates/0-kustomized.yaml")); err != nil {
-			t.Error(err)
+		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, "files/0-kustomized.yaml")); err != nil {
+			t.Error(errWithFiles(err, tmpDir))
+		}
+
+		if _, err := ioutil.ReadFile(filepath.Join(tmpDir, "templates/helmx.all.yaml")); err != nil {
+			t.Error(errWithFiles(err, tmpDir))
 		}
 	}
 }

@@ -39,4 +39,3 @@ func env2map(env []string) map[string]string {
 	}
 	return wanted
 }
-

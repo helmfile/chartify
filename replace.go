@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +47,7 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		additionalFlags += createFlagChain("namespace", []string{o.Namespace})
 	}
 
-	klog.Infof("options: %v", o)
+	r.Logf("options: %v", o)
 
 	dir := filepath.Join(chart, "helmx.1.rendered")
 	if err := os.Mkdir(dir, 0755); err != nil {
@@ -104,7 +103,7 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 	}
 
 	for _, f := range files {
-		klog.Infof("removing %s", f)
+		r.Logf("removing %s", f)
 		if err := os.Remove(f); err != nil {
 			return nil, err
 		}

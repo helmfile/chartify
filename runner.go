@@ -21,7 +21,7 @@ type Runner struct {
 	// KustomizeBinary is the name or the path to `kustomize` command
 	KustomizeBinary string
 
-	isHelm3    bool
+	isHelm3 bool
 
 	RunCommand RunCommandFunc
 
@@ -32,6 +32,9 @@ type Runner struct {
 	Walk        func(root string, walkFn filepath.WalkFunc) error
 	MakeTempDir func() string
 	Exists      func(path string) (bool, error)
+
+	// Logf is the alternative log function used by chartify
+	Logf func(string, ...interface{})
 }
 
 type Option func(*Runner) error
@@ -50,6 +53,13 @@ func UseHelm3(u bool) Option {
 	}
 }
 
+func WithLogf(logf func(string, ...interface{})) Option {
+	return func(r *Runner) error {
+		r.Logf = logf
+		return nil
+	}
+}
+
 func New(opts ...Option) *Runner {
 	r := &Runner{
 		KustomizeBinary: "",
@@ -60,6 +70,7 @@ func New(opts ...Option) *Runner {
 		ReadDir:         ioutil.ReadDir,
 		Walk:            filepath.Walk,
 		Exists:          exists,
+		Logf:            printf,
 		MakeTempDir: func() string {
 			return mkRandomDir(os.TempDir())
 		},
@@ -166,4 +177,8 @@ func (r *Runner) captureBytes(binary string, args []string) ([]byte, []byte, err
 		klog.V(1).Info(stderr.String())
 	}
 	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+func printf(format string, vars ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+"\n", vars...)
 }
