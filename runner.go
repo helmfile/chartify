@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"k8s.io/klog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,7 +164,7 @@ func (r *Runner) IsHelm3() bool {
 }
 
 func (r *Runner) captureBytes(binary string, args []string) ([]byte, []byte, error) {
-	klog.V(1).Infof("running %s %s", binary, strings.Join(args, " "))
+	r.Logf("running %s %s", binary, strings.Join(args, " "))
 	_, err := exec.LookPath(binary)
 	if err != nil {
 		return nil, nil, err
@@ -174,7 +173,7 @@ func (r *Runner) captureBytes(binary string, args []string) ([]byte, []byte, err
 	var stdout, stderr bytes.Buffer
 	err = r.RunCommand(binary, args, &stdout, &stderr, map[string]string{})
 	if err != nil {
-		klog.V(1).Info(stderr.String())
+		r.Logf(stderr.String())
 	}
 	return stdout.Bytes(), stderr.Bytes(), err
 }
