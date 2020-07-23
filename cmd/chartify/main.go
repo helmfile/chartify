@@ -71,7 +71,7 @@ func main() {
 	}
 
 	if err := os.Rename(generatedDir, outDir); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: moving %s to %s: %v\n", generatedDir, outDir)
+		fmt.Fprintf(os.Stderr, "Error: moving %s to %s: %v\n", generatedDir, outDir, err)
 		os.Exit(1)
 	}
 }
