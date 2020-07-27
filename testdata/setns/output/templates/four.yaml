@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: config5
-  namespace: foo
+  namespace: void
 stringData:
   source: config5
 ---
@@ -12,6 +12,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: config6
-  namespace: foo
+  namespace: void
 stringData:
   source: config6

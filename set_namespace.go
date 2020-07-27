@@ -65,7 +65,10 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 				if resourceIndex > -1 && metadataIndex > -1 {
 					c := doc.Content[resourceIndex].Content[metadataIndex].Content
 					if namespaceIndex > -1 {
-						c[namespaceIndex].Value = ns
+						// Do not override the namespace when it's already specified,
+						// to replicate K8s and Helm behaviour.
+						//
+						//c[namespaceIndex].Value = ns
 					} else {
 						c = append(c, &yaml.Node{
 							Kind:  yaml.ScalarNode,
