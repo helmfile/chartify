@@ -1,0 +1,7 @@
+- "."
+- "Chart.yaml"
+- "files"
+- "files/templates"
+- "files/templates/kustomized.yaml"
+- "templates"
+- "templates/kustomized.yaml"

@@ -98,7 +98,8 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		return "", err
 	}
 	baseFile := []byte("bases:\n- " + relPath + "\n")
-	if err := r.WriteFile(path.Join(tempDir, "kustomization.yaml"), baseFile, 0644); err != nil {
+	kustomizationPath := path.Join(tempDir, "kustomization.yaml")
+	if err := r.WriteFile(kustomizationPath, baseFile, 0644); err != nil {
 		return "", err
 	}
 
@@ -132,8 +133,8 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 			return "", err
 		}
 	}
-	kustomizeFile := filepath.Join(tempDir, "kustomized.yaml")
-	kustomizeArgs := []string{"-o", kustomizeFile, "build", "--load_restrictor=none"}
+	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
+	kustomizeArgs := []string{"-o", outputFile, "build", "--load_restrictor=none"}
 	if u.EnableAlphaPlugins {
 		kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
 	}
@@ -143,5 +144,9 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 	fmt.Println(out)
 
-	return kustomizeFile, nil
+	if err := os.RemoveAll(kustomizationPath); err != nil {
+		return "", fmt.Errorf("removing unnecessary kustomization.yaml after build: %v", err)
+	}
+
+	return outputFile, nil
 }

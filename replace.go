@@ -2,8 +2,6 @@ package chartify
 
 import (
 	"fmt"
-	"io/ioutil"
-
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,10 +29,10 @@ type ReplaceWithRenderedOpts struct {
 	WorkaroundOutputDirIssue bool
 }
 
-func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o ReplaceWithRenderedOpts) ([]string, error) {
+func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o ReplaceWithRenderedOpts) ([]string, error) {
 	var additionalFlags string
 	additionalFlags += createFlagChain("set", o.SetValues)
-	defaultValuesPath := filepath.Join(chart, "values.yaml")
+	defaultValuesPath := filepath.Join(chartPath, "values.yaml")
 	exists, err := r.Exists(defaultValuesPath)
 	if err != nil {
 		return nil, err
@@ -49,52 +47,61 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 
 	r.Logf("options: %v", o)
 
-	dir := filepath.Join(chart, "helmx.1.rendered")
-	if err := os.Mkdir(dir, 0755); err != nil {
+	helmOutputDir := filepath.Join(chartPath, "helmx.1.rendered")
+	if err := os.Mkdir(helmOutputDir, 0755); err != nil {
 		return nil, err
 	}
+
+	// This directory contains templates/ and charts/SUBCHART/templates
+	chartOutputDir := filepath.Join(helmOutputDir, chartName)
 
 	var command string
 
 	writtenFiles := map[string]bool{}
-
-	if r.isHelm3 && o.WorkaroundOutputDirIssue {
-		templatePath := filepath.Join(dir, filepath.Base(chart), "templates", "all.yaml")
-
-		if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
-			return nil, err
-		}
-
-		command = fmt.Sprintf("%s template --debug=%v%s %s %s", r.helmBin(), o.Debug, additionalFlags, name, chart)
-
-		stdout, err := r.run(command)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := ioutil.WriteFile(templatePath, []byte(stdout), 0644); err != nil {
-			return nil, err
-		}
-
-		writtenFiles[templatePath] = true
+	if r.isHelm3 {
+		command = fmt.Sprintf("%s template --debug=%v --include-crds --output-dir %s%s %s %s", r.helmBin(), o.Debug, helmOutputDir, additionalFlags, name, chartPath)
 	} else {
-		if r.isHelm3 {
-			command = fmt.Sprintf("%s template --debug=%v --output-dir %s%s %s %s", r.helmBin(), o.Debug, dir, additionalFlags, name, chart)
-		} else {
-			command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chart, name, additionalFlags, dir)
-		}
+		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chartPath, name, additionalFlags, helmOutputDir)
+	}
 
-		stdout, err := r.run(command)
-		if err != nil {
+	stdout, err := r.run(command)
+	if err != nil {
+		return nil, err
+	}
+
+	// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
+	// - Replace charts/SUBCHART.tgz with rendered charts/SUBCHART/templates/*.yaml
+	// - REplace crds/*.yaml with rendered crds/*.yaml
+	for _, d := range ContentDirs {
+		origDir := filepath.Join(chartPath, d)
+		if err := os.RemoveAll(origDir); err != nil {
 			return nil, err
 		}
 
-		lines := strings.Split(stdout, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "wrote ") {
-				file := strings.Split(line, "wrote ")[1]
-				writtenFiles[file] = true
+		newDir := filepath.Join(chartOutputDir, d)
+		if _, err := os.Stat(newDir); err != nil {
+			if os.IsNotExist(err) {
+				continue
 			}
+			return nil, err
+		}
+		if err := os.Rename(newDir, origDir); err != nil {
+			return nil, err
+		}
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "wrote ") {
+			file := strings.Split(line, "wrote ")[1]
+
+			for _, d := range ContentDirs {
+				origDir := filepath.Join(chartPath, d)
+				newDir := filepath.Join(chartOutputDir, d)
+				file = strings.ReplaceAll(file, newDir, origDir)
+			}
+
+			writtenFiles[file] = true
 		}
 	}
 
@@ -102,11 +109,8 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		return nil, fmt.Errorf("invalid state: no files rendered")
 	}
 
-	for _, f := range files {
-		r.Logf("removing %s", f)
-		if err := os.Remove(f); err != nil {
-			return nil, err
-		}
+	if err := os.RemoveAll(helmOutputDir); err != nil {
+		return nil, fmt.Errorf("cleaning up unnecessary files after replace: %v", err)
 	}
 
 	results := make([]string, 0, len(writtenFiles))
@@ -114,4 +118,21 @@ func (r *Runner) ReplaceWithRendered(name, chart string, files []string, o Repla
 		results = append(results, f)
 	}
 	return results, nil
+}
+
+func (r *Runner) executeHelmTemplate(release, chart string) error {
+	var command string
+
+	if r.isHelm3 {
+		command = fmt.Sprintf("%s template --include-crds %s %s", r.helmBin(), release, chart)
+	} else {
+		command = fmt.Sprintf("%s template --name % s%s", r.helmBin(), release, chart)
+	}
+
+	_, err := r.run(command)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

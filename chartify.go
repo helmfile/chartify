@@ -11,6 +11,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	ContentDirs = []string{"templates", "charts", "crds"}
+)
+
 type ChartifyOpts struct {
 	// Debug when set to true passes `--debug` flag to `helm` in order to enable debug logging
 	Debug bool
@@ -109,13 +113,13 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	generatedManifestFiles := []string{}
 
-	dstTemplatesDir := filepath.Join(tempDir, "templates")
-	dirExists, err := r.Exists(dstTemplatesDir)
+	templatesDir := filepath.Join(tempDir, "templates")
+	dirExists, err := r.Exists(templatesDir)
 	if err != nil {
 		return "", err
 	}
 	if !dirExists {
-		if err := os.Mkdir(dstTemplatesDir, 0755); err != nil {
+		if err := os.Mkdir(templatesDir, 0755); err != nil {
 			return "", err
 		}
 	}
@@ -160,33 +164,30 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	var requirementsYamlContent string
+	chartName := filepath.Base(dirOrChart)
 	if !isChart {
 		ver := u.ChartVersion
 		if u.ChartVersion == "" {
 			ver = "1.0.0"
 			r.Logf("using the default chart version 1.0.0 due to that no ChartVersion is specified")
 		}
-		chartyaml := fmt.Sprintf("name: \"%s\"\nversion: %s\nappVersion: %s\n", release, ver, ver)
+		chartyaml := fmt.Sprintf("name: \"%s\"\nversion: %s\nappVersion: %s\n", chartName, ver, ver)
 		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
 			return "", err
 		}
 	}
 
+	var reqs Requirements
+
 	bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
 	if os.IsNotExist(err) {
-		requirementsYamlContent = `dependencies:`
+
 	} else if err != nil {
 		return "", err
 	} else {
-		parsed := map[string]interface{}{}
-		if err := yaml.Unmarshal(bytes, &parsed); err != nil {
+		if err := yaml.Unmarshal(bytes, &reqs); err != nil {
 			return "", err
 		}
-		if _, ok := parsed["dependencies"]; !ok {
-			bytes = []byte(`dependencies:`)
-		}
-		requirementsYamlContent = string(bytes)
 	}
 
 	for _, d := range u.AdhocChartDependencies {
@@ -232,17 +233,21 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			return "", fmt.Errorf("no helm list entry found for repository \"%s\". please `helm repo add` it!", repo)
 		}
 
-		requirementsYamlContent = requirementsYamlContent + fmt.Sprintf(`
-- name: %s
-  repository: %s
-  condition: %s.enabled
-  alias: %s
-`, chart, repoUrl, alias, alias)
-		requirementsYamlContent = requirementsYamlContent + fmt.Sprintf(`  version: "%s"
-`, ver)
+		reqs.Dependencies = append(reqs.Dependencies, Dependency{
+			Name:       chart,
+			Repository: repoUrl,
+			Condition:  fmt.Sprintf("%s.enabled", alias),
+			Alias:      alias,
+			Version:    ver,
+		})
 	}
 
-	if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), []byte(requirementsYamlContent), 0644); err != nil {
+	requirementsYamlContent, err := yaml.Marshal(&reqs)
+	if err != nil {
+		return "", fmt.Errorf("marshalling %s's requirements as YAML: %w", release, err)
+	}
+
+	if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
 		return "", err
 	}
 
@@ -257,54 +262,47 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	{
 		// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
 		// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-		_, err := r.run(r.helmBin(), "dependency", "build", tempDir)
+		_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
 		if err != nil {
 			return "", err
 		}
 
-		matches, err := filepath.Glob(filepath.Join(tempDir, "charts", "*-*.tgz"))
+		templateOptions := ReplaceWithRenderedOpts{
+			Debug:        u.Debug,
+			Namespace:    u.Namespace,
+			SetValues:    u.SetValues,
+			ValuesFiles:  u.ValuesFiles,
+			ChartVersion: u.ChartVersion,
+
+			WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
+		}
+
+		generated, err := r.ReplaceWithRendered(release, chartName, tempDir, templateOptions)
 		if err != nil {
 			return "", err
 		}
 
-		if isChart || len(matches) > 0 {
-			templateFileOptions := SearchFileOpts{
-				basePath:     tempDir,
-				matchSubPath: "templates",
-				fileType:     "yaml",
-			}
-			templateFiles, err := r.SearchFiles(templateFileOptions)
-			if err != nil {
-				return "", err
-			}
-
-			templateOptions := ReplaceWithRenderedOpts{
-				Debug:        u.Debug,
-				Namespace:    u.Namespace,
-				SetValues:    u.SetValues,
-				ValuesFiles:  u.ValuesFiles,
-				ChartVersion: u.ChartVersion,
-
-				WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
-			}
-			generated, err := r.ReplaceWithRendered(release, tempDir, templateFiles, templateOptions)
-			if err != nil {
-				return "", err
-			}
-
-			generatedManifestFiles = generated
-		}
+		generatedManifestFiles = generated
+		//}
 	}
 
 	// We've already rendered resources from the chart and its subcharts to the helmx.1.rendered directory
 	// No need to double-render them by leaving requirements.yaml/lock and downloaded sub-charts
 	_ = os.Remove(filepath.Join(tempDir, "requirements.yaml"))
 	_ = os.Remove(filepath.Join(tempDir, "requirements.lock"))
-	_ = os.RemoveAll(filepath.Join(tempDir, "charts"))
 
+	var chartNames []string
+
+	chartNames = append(chartNames, filepath.Base(dirOrChart))
+	for _, r := range reqs.Dependencies {
+		chartNames = append(chartNames, r.Alias)
+	}
+
+	// Files are written to somewhere else than "templates/` to avoid double-rendering
+	// which will break go templates embedded in YAML(e.g. PrometheusRule)
+	filesDir := filepath.Join(tempDir, "files")
 	{
-		dstFilesDir := filepath.Join(tempDir, "files")
-		if err := os.MkdirAll(dstFilesDir, 0755); err != nil {
+		if err := os.MkdirAll(filesDir, 0755); err != nil {
 			return "", err
 		}
 
@@ -313,39 +311,64 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				JsonPatches:           u.JsonPatches,
 				StrategicMergePatches: u.StrategicMergePatches,
 			}
-			patchedAndConcatenated, err := r.Patch(tempDir, generatedManifestFiles, patchOpts)
-			if err != nil {
+			if err := r.Patch(tempDir, generatedManifestFiles, patchOpts); err != nil {
 				return "", err
 			}
-
-			generatedManifestFiles = []string{patchedAndConcatenated}
-
-			final := filepath.Join(dstFilesDir, "helmx.all.yaml")
-			r.Logf("copying %s to %s", patchedAndConcatenated, final)
-			if err := r.CopyFile(patchedAndConcatenated, final); err != nil {
-				return "", err
-			}
-		} else {
-			dsts := []string{}
-			for i, f := range generatedManifestFiles {
-				dst := filepath.Join(dstFilesDir, fmt.Sprintf("%d-%s", i, filepath.Base(f)))
-				if err := os.Rename(f, dst); err != nil {
-					return "", err
-				}
-				dsts = append(dsts, dst)
-			}
-			generatedManifestFiles = dsts
 		}
 
-		content := []byte(`{{ $files := .Files -}}
-{{ range $path, $content :=  .Files.Glob  "files/**.yaml" -}}
----
-{{ $files.Get $path }}
-{{ end }}
-`)
+		for _, d := range ContentDirs {
+			srcDir := filepath.Join(tempDir, d)
+			dstDir := filepath.Join(filesDir, d)
 
-		if err := r.WriteFile(filepath.Join(dstTemplatesDir, "helmx.all.yaml"), content, 0644); err != nil {
-			return "", err
+			if _, err := os.Lstat(srcDir); err == nil {
+				if err := os.Rename(srcDir, dstDir); err != nil {
+					return "", err
+				}
+			} else {
+				continue
+			}
+
+			if err := filepath.Walk(dstDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+
+				if info.IsDir() {
+					return nil
+				}
+
+				rel, err := filepath.Rel(filesDir, path)
+				if err != nil {
+					return fmt.Errorf("calculating relative path to %s from %s: %v", path, filesDir, err)
+				}
+
+				content := []byte(fmt.Sprintf(`{{ .Files.Get "files/%s" }}`, rel))
+
+				f := filepath.Join(tempDir, rel)
+
+				if err := createDirForFile(f); err != nil {
+					return err
+				}
+
+				if err := r.WriteFile(f, content, 0644); err != nil {
+					return err
+				}
+
+				return nil
+			}); err != nil {
+				return "", err
+			}
+
+			// Without this, any sub-sequent helm command on the generated local chart result in
+			// an error due to missing Chart.yaml for every `charts/SUBCHART`
+			if d == "charts" {
+				chartsDir := filepath.Join(tempDir, "charts")
+				templateChartsDir := filepath.Join(tempDir, "templates", "charts")
+
+				if err := os.Rename(chartsDir, templateChartsDir); err != nil {
+					return "", err
+				}
+			}
 		}
 	}
 
@@ -358,6 +381,21 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	return tempDir, nil
+}
+
+func createDirForFile(f string) error {
+	dstFileDir := filepath.Dir(f)
+	if _, err := os.Lstat(dstFileDir); err == nil {
+
+	} else if err != nil && os.IsNotExist(err) {
+		if err := os.MkdirAll(dstFileDir, 0755); err != nil {
+			return fmt.Errorf("creating directory %s: %v", dstFileDir, err)
+		}
+	} else {
+		return fmt.Errorf("checking directory %s: %v", dstFileDir, err)
+	}
+
+	return nil
 }
 
 // copyToTempDir checks if the path is local or a repo (in this order) and copies it to a temp directory
