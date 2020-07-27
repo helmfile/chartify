@@ -1,0 +1,17 @@
+# Source: templates/four.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config5
+  namespace: foo
+stringData:
+  source: config5
+---
+# Source: templates/four.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config6
+  namespace: foo
+stringData:
+  source: config6

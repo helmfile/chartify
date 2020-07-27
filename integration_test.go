@@ -81,6 +81,16 @@ func TestIntegration(t *testing.T) {
 				StrategicMergePatches:  []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/strategicpatch.yaml"},
 			},
 		},
+		{
+			release:  "testrelease",
+			chart:    "stable/envoy",
+			snapshot: "testdata/envoy-with-ns/output",
+			fileList: "testdata/envoy-with-ns/filelist.yaml",
+			opts: ChartifyOpts{
+				Namespace:   "foo",
+				ValuesFiles: []string{"testdata/envoy-with-ns/values.yaml"},
+			},
+		},
 	}
 
 	for i, tc := range testcases {

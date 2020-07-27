@@ -1,0 +1,12 @@
+# Source: envoy/templates/xds.configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: testrelease-envoy-xds
+  labels:
+    app: envoy
+    chart: envoy-1.9.1
+    release: testrelease
+    heritage: Helm
+  namespace: foo
+data:

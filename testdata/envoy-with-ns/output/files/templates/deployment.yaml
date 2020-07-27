@@ -1,0 +1,69 @@
+# Source: envoy/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testrelease-envoy
+  labels:
+    app: envoy
+    chart: envoy-1.9.1
+    release: testrelease
+    heritage: Helm
+  namespace: foo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: envoy
+      release: testrelease
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: envoy
+        release: testrelease
+        component: controller
+      annotations:
+        checksum/config: 1b4411fda761e476129da0703e5fc66fdf460d0422e9ce9fa2aa82f21538281d
+    spec:
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: envoy
+        image: "envoyproxy/envoy:v1.11.1"
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/envoy
+        args:
+        - -l
+        - $loglevel
+        - -c
+        - /config/envoy.yaml
+        ports:
+        - name: admin
+          containerPort: 9901
+          protocol: TCP
+        - name: n0
+          containerPort: 10000
+          protocol: TCP
+        livenessProbe:
+          initialDelaySeconds: 30
+          tcpSocket:
+            port: admin
+        readinessProbe:
+          initialDelaySeconds: 30
+          tcpSocket:
+            port: admin
+        env:
+        resources: {}
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        lifecycle: {}
+      volumes:
+      - name: config
+        configMap:
+          name: testrelease-envoy

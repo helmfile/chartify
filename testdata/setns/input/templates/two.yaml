@@ -1,0 +1,15 @@
+# Source: templates/two.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config1
+stringData:
+  source: config1
+---
+# Source: templates/two.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config2
+stringData:
+  source: config2

@@ -1,0 +1,8 @@
+# Source: templates/one.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config4
+  namespace: foo
+stringData:
+  source: config4

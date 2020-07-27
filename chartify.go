@@ -306,6 +306,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			return "", err
 		}
 
+		if u.Namespace != "" {
+			if err := r.SetNamespace(tempDir, u.Namespace); err != nil {
+				return "", err
+			}
+		}
+
 		if isChart && (len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0) {
 			patchOpts := &PatchOpts{
 				JsonPatches:           u.JsonPatches,

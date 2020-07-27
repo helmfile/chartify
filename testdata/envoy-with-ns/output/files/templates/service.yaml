@@ -1,0 +1,22 @@
+# Source: envoy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy
+  labels:
+    app: envoy
+    chart: envoy-1.9.1
+    release: testrelease
+    heritage: Helm
+  annotations:
+  namespace: foo
+spec:
+  type: ClusterIP
+  ports:
+  - name: n0
+    port: 10000
+    protocol: TCP
+    targetPort: n0
+  selector:
+    app: envoy
+    release: testrelease
