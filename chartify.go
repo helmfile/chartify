@@ -51,6 +51,12 @@ type ChartifyOpts struct {
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
 	WorkaroundOutputDirIssue bool
+
+	// OverrideNamespace modifies namespace of every resource after rendering and patching,
+	// as a workaround to fix a broken chart.
+	// For kustomization, `Namespace` should just work and this won't be needed.
+	// For helm chart, as long as the chart has "correct" resource templates with `namespace: {{ .Namespace }}`s this isn't needed.
+	OverrideNamespace string
 }
 
 type ChartifyOption interface {
@@ -129,6 +135,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			ValuesFiles:        u.ValuesFiles,
 			SetValues:          u.SetValues,
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
+			Namespace:          u.Namespace,
 		}
 		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomOpts)
 		if err != nil {
@@ -306,8 +313,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			return "", err
 		}
 
-		if u.Namespace != "" {
-			if err := r.SetNamespace(tempDir, u.Namespace); err != nil {
+		if u.OverrideNamespace != "" {
+			if err := r.SetNamespace(tempDir, u.OverrideNamespace); err != nil {
 				return "", err
 			}
 		}

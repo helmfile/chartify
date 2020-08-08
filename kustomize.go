@@ -41,6 +41,7 @@ type KustomizeBuildOpts struct {
 	ValuesFiles        []string
 	SetValues          []string
 	EnableAlphaPlugins bool
+	Namespace          string
 }
 
 func (o *KustomizeBuildOpts) SetKustomizeBuildOption(opts *KustomizeBuildOpts) error {
@@ -70,6 +71,10 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		if err := yaml.Unmarshal(valsFileContent, &kustomizeOpts); err != nil {
 			return "", err
 		}
+	}
+
+	if u.Namespace != "" {
+		kustomizeOpts.Namespace = u.Namespace
 	}
 
 	if len(u.SetValues) > 0 {

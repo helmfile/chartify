@@ -134,8 +134,8 @@ resources:
 
 	r.Logf("generated and using kustomization.yaml:\n%s", kustomizationYamlContent)
 
-	renderedFile := filepath.Join(tempDir, "helmx.2.patched.yaml")
-	r.Logf("generating %s", renderedFile)
+	renderedFile := filepath.Join(tempDir, "all.patched.yaml")
+	r.Logf("Generating %s", renderedFile)
 	_, err := r.run(r.kustomizeBin(), "build", tempDir, "--output", renderedFile)
 	if err != nil {
 		return err
@@ -145,7 +145,7 @@ resources:
 
 	for _, f := range removedPathList {
 		d := filepath.Join(tempDir, f)
-		r.Logf("removing %s", d)
+		r.Logf("Removing %s", d)
 		if err := os.RemoveAll(d); err != nil {
 			return err
 		}

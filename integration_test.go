@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -27,6 +28,15 @@ func errWithFiles(err error, tmpDir string) error {
 	return fmt.Errorf("%v\n\nListing files under %s:\n%s", err, tmpDir, strings.Join(files, "\n"))
 }
 
+type check struct {
+	kind      string
+	name      string
+	namespace string
+	cond      string
+
+	f func(*testing.T, map[string]interface{})
+}
+
 func TestIntegration(t *testing.T) {
 	r := New(UseHelm3(true), HelmBin("helm"))
 
@@ -35,6 +45,7 @@ func TestIntegration(t *testing.T) {
 		chart    string
 		snapshot string
 		fileList string
+		checks   []check
 		opts     ChartifyOpts
 	}{
 		{
@@ -74,6 +85,27 @@ func TestIntegration(t *testing.T) {
 			chart:    "stable/prometheus-operator",
 			snapshot: "testdata/prometheus-operator-adhoc-dep-with-strategicpatch/output",
 			fileList: "testdata/prometheus-operator-adhoc-dep-with-strategicpatch/filelist.yaml",
+			checks: []check{
+				{
+					kind:      "Deployment",
+					name:      "testrelease-my",
+					namespace: "default",
+					cond:      "spec.strategy.type must be RollingUpdate",
+					f: func(t *testing.T, m map[string]interface{}) {
+						spec, ok := m["spec"].(map[string]interface{})
+						if ok {
+							strategy, ok := spec["strategy"].(map[string]interface{})
+							if ok {
+								tpe, ok := strategy["type"]
+								if ok && tpe == "RollingUpdate" {
+									return
+								}
+							}
+						}
+						t.Errorf("unexpected spec.strategy.type: %+v", m)
+					},
+				},
+			},
 			opts: ChartifyOpts{
 				ValuesFiles:            []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/values.yaml"},
 				ChartVersion:           "9.2.1",
@@ -87,8 +119,9 @@ func TestIntegration(t *testing.T) {
 			snapshot: "testdata/envoy-with-ns/output",
 			fileList: "testdata/envoy-with-ns/filelist.yaml",
 			opts: ChartifyOpts{
-				Namespace:   "foo",
-				ValuesFiles: []string{"testdata/envoy-with-ns/values.yaml"},
+				OverrideNamespace: "foo",
+				ChartVersion:      "1.9.1",
+				ValuesFiles:       []string{"testdata/envoy-with-ns/values.yaml"},
 			},
 		},
 	}
@@ -173,9 +206,82 @@ func TestIntegration(t *testing.T) {
 
 					paths = append(paths, rel)
 
+					if info.IsDir() || filepath.Ext(path) != ".yaml" {
+						return nil
+					}
+
+					//
+					// Check partial content
+					//
+
+					passed := map[int]bool{}
+
+					m := map[string]interface{}{}
+					bs, err := ioutil.ReadFile(path)
+					if err != nil {
+						t.Fatalf("%v", err)
+					}
+
+					if strings.HasPrefix(string(bs), "{{ .Files.Get \"") {
+						// Looks like chartify-generated helm template
+						return nil
+					}
+
+					f, err := os.Open(path)
+					if err != nil {
+						t.Fatalf("opening %s: %v", path, err)
+					}
+
+					dec := yaml.NewDecoder(f)
+
+					for ; ; {
+						err := dec.Decode(&m)
+						if err != nil {
+							if err == io.EOF {
+								break
+							}
+							t.Fatalf("%v:\nYAML:\n%s", err, string(bs))
+						}
+
+						kind := m["kind"]
+						metadata, ok := m["metadata"].(map[string]interface{})
+						if !ok {
+							// Looks like a non-K8s YAML (like Chart.yaml and values.yaml)
+							continue
+						}
+						name := metadata["name"].(string)
+						namespace, ok := metadata["namespace"].(string)
+						if !ok {
+							namespace = ""
+						}
+						for i, check := range tc.checks {
+							if kind == check.kind && name == check.name && namespace == check.namespace {
+								check.f(t, m)
+								passed[i] = true
+							}
+						}
+					}
+
+					var checks []check
+					for i, check := range tc.checks {
+						if !passed[i] {
+							checks = append(checks, check)
+						}
+					}
+					tc.checks = checks
+
 					return nil
 				}); err != nil {
 					t.Fatalf("%v", err)
+				}
+
+				if len(tc.checks) > 0 {
+					var lines []string
+					for _, c := range tc.checks {
+						lines = append(lines, fmt.Sprintf("%s/%s (%s) %s", c.namespace, c.name, c.kind, c.cond))
+					}
+					msg := strings.Join(lines, "\n")
+					t.Errorf("%d checks are remaining:\n%s", len(tc.checks), msg)
 				}
 
 				sort.Strings(paths)
