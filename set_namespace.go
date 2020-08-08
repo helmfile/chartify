@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 )
 
+// SetNamespace is a poor-man's `kubectl apply -f DIR --dry-run -o yaml --namespace NAMESPACE`
 func (r *Runner) SetNamespace(tempDir, ns string) error {
 	for _, d := range ContentDirs {
 		a := filepath.Join(tempDir, d)

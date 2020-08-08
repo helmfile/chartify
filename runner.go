@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-type RunCommandFunc func(name string, args []string, stdout, stderr io.Writer, env map[string]string) error
+type RunCommandFunc func(name string, args []string, dir string, stdout, stderr io.Writer, env map[string]string) error
 
 type Runner struct {
 	// HelmBinary is the name or the path to `helm` command
@@ -71,7 +71,11 @@ func New(opts ...Option) *Runner {
 		Exists:          exists,
 		Logf:            printf,
 		MakeTempDir: func() string {
-			return mkRandomDir(os.TempDir())
+			d, err := ioutil.TempDir(os.TempDir(), "chartify")
+			if err != nil {
+				panic(err)
+			}
+			return d
 		},
 	}
 
@@ -99,7 +103,7 @@ func (r *Runner) kustomizeBin() string {
 }
 
 func (r *Runner) run(cmd string, args ...string) (string, error) {
-	bytes, err := r.runBytes(cmd, args...)
+	bytes, err := r.runBytes("", cmd, args...)
 
 	var out string
 
@@ -110,7 +114,19 @@ func (r *Runner) run(cmd string, args ...string) (string, error) {
 	return out, err
 }
 
-func (r *Runner) runBytes(cmd string, args ...string) ([]byte, error) {
+func (r *Runner) runInDir(dir, cmd string, args ...string) (string, error) {
+	bytes, err := r.runBytes(dir, cmd, args...)
+
+	var out string
+
+	if bytes != nil {
+		out = string(bytes)
+	}
+
+	return out, err
+}
+
+func (r *Runner) runBytes(dir, cmd string, args ...string) ([]byte, error) {
 	nameArgs := strings.Split(cmd, " ")
 
 	name := nameArgs[0]
@@ -122,7 +138,7 @@ func (r *Runner) runBytes(cmd string, args ...string) ([]byte, error) {
 		args = a
 	}
 
-	bytes, errBytes, err := r.captureBytes(name, args)
+	bytes, errBytes, err := r.captureBytes(name, args, dir)
 	if err != nil {
 		c := strings.Join(append([]string{name}, args...), " ")
 
@@ -163,7 +179,7 @@ func (r *Runner) IsHelm3() bool {
 	return strings.HasPrefix(out, "v3.")
 }
 
-func (r *Runner) captureBytes(binary string, args []string) ([]byte, []byte, error) {
+func (r *Runner) captureBytes(binary string, args []string, dir string) ([]byte, []byte, error) {
 	r.Logf("running %s %s", binary, strings.Join(args, " "))
 	_, err := exec.LookPath(binary)
 	if err != nil {
@@ -171,7 +187,7 @@ func (r *Runner) captureBytes(binary string, args []string) ([]byte, []byte, err
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = r.RunCommand(binary, args, &stdout, &stderr, map[string]string{})
+	err = r.RunCommand(binary, args, dir, &stdout, &stderr, map[string]string{})
 	if err != nil {
 		r.Logf(stderr.String())
 	}
