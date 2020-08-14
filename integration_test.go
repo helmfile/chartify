@@ -124,6 +124,28 @@ func TestIntegration(t *testing.T) {
 				ValuesFiles:       []string{"testdata/envoy-with-ns/values.yaml"},
 			},
 		},
+		{
+			release:  "testrelease",
+			chart:    "testdata/raw-manifests/input",
+			snapshot: "testdata/raw-manifests/output",
+			fileList: "testdata/raw-manifests/filelist.yaml",
+			opts: ChartifyOpts{
+				OverrideNamespace: "foo",
+				ChartVersion:      "1.9.1",
+				ValuesFiles:       []string{"testdata/envoy-with-ns/values.yaml"},
+			},
+		},
+		{
+			release:  "testrelease",
+			chart:    "testdata/raw-manifests/input",
+			snapshot: "testdata/raw-manifests/output",
+			fileList: "testdata/raw-manifests/filelist.yaml",
+			opts: ChartifyOpts{
+				Namespace:    "foo",
+				ChartVersion: "1.9.1",
+				ValuesFiles:  []string{"testdata/envoy-with-ns/values.yaml"},
+			},
+		},
 	}
 
 	for i, tc := range testcases {
@@ -234,7 +256,7 @@ func TestIntegration(t *testing.T) {
 
 					dec := yaml.NewDecoder(f)
 
-					for ; ; {
+					for {
 						err := dec.Decode(&m)
 						if err != nil {
 							if err == io.EOF {

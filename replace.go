@@ -88,6 +88,11 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		if err := os.Rename(newDir, origDir); err != nil {
 			return nil, err
 		}
+
+		usedDir := filepath.Join(chartPath, "files", d)
+		if err := os.RemoveAll(usedDir); err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
 	}
 
 	lines := strings.Split(stdout, "\n")

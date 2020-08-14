@@ -1,0 +1,8 @@
+# Source: input/templates/foo/configmap.2.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfig
+  namespace: foo
+data:
+  foo: baz

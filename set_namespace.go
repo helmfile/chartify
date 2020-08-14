@@ -30,7 +30,7 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 			var docs []yaml.Node
 
 			dec := yaml.NewDecoder(f)
-			for ; ; {
+			for {
 				doc := yaml.Node{}
 
 				if err := dec.Decode(&doc); err != nil {
