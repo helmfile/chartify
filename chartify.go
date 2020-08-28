@@ -343,7 +343,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	if isChart && (len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0) {
+	if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 {
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,
