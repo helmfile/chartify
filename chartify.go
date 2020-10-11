@@ -200,7 +200,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			ver = "1.0.0"
 			r.Logf("using the default chart version 1.0.0 due to that no ChartVersion is specified")
 		}
-		chartyaml := fmt.Sprintf("name: \"%s\"\nversion: %s\nappVersion: %s\n", chartName, ver, ver)
+		chartConfigTemplate := "name: \"%s\"\nversion: %s\nappVersion: %s\napiVersion: v2\n"
+		chartyaml := fmt.Sprintf(chartConfigTemplate, chartName, ver, ver)
 		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
 			return "", err
 		}
