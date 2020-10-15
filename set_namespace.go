@@ -85,7 +85,7 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 					}
 					doc.Content[resourceIndex].Content[metadataIndex].Content = c
 				} else {
-					return fmt.Errorf("no resource and metadata found in %+v", doc)
+					r.Logf("Skipping %s as it has no resource and metadata. Maybe this is an unconventional chart template file that contains only {{ define}} blocks but not named _helpers.tpl?", f.Name())
 				}
 
 				docs = append(docs, doc)
