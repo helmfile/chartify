@@ -57,6 +57,11 @@ type ChartifyOpts struct {
 	// For kustomization, `Namespace` should just work and this won't be needed.
 	// For helm chart, as long as the chart has "correct" resource templates with `namespace: {{ .Namespace }}`s this isn't needed.
 	OverrideNamespace string
+
+	// SkipDeps skips running `helm dep up` on the chart.
+	// Useful for cases when the chart has a broken dependencies definition like seen in
+	// https://github.com/roboll/helmfile/issues/1547
+	SkipDeps bool
 }
 
 type ChartifyOption interface {
@@ -299,7 +304,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	var generatedManifestFiles []string
-	{
+	if u.SkipDeps {
+		if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 {
+			r.Logf("Skipping `helm dependency up` on release %s's chart due to that you've set SkipDeps=true.\n" +
+				"This implies that you can't patch resources from the dependent charts.")
+		}
+	} else {
 		// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
 		// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
 		_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
