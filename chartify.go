@@ -316,25 +316,24 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		if err != nil {
 			return "", err
 		}
-
-		templateOptions := ReplaceWithRenderedOpts{
-			Debug:        u.Debug,
-			Namespace:    u.Namespace,
-			SetValues:    u.SetValues,
-			ValuesFiles:  u.ValuesFiles,
-			ChartVersion: u.ChartVersion,
-
-			WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
-		}
-
-		generated, err := r.ReplaceWithRendered(release, chartName, tempDir, templateOptions)
-		if err != nil {
-			return "", err
-		}
-
-		generatedManifestFiles = generated
-		//}
 	}
+
+	templateOptions := ReplaceWithRenderedOpts{
+		Debug:        u.Debug,
+		Namespace:    u.Namespace,
+		SetValues:    u.SetValues,
+		ValuesFiles:  u.ValuesFiles,
+		ChartVersion: u.ChartVersion,
+
+		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
+	}
+
+	generated, err := r.ReplaceWithRendered(release, chartName, tempDir, templateOptions)
+	if err != nil {
+		return "", err
+	}
+
+	generatedManifestFiles = generated
 
 	// We've already rendered resources from the chart and its subcharts to the helmx.1.rendered directory
 	// No need to double-render them by leaving requirements.yaml/lock and downloaded sub-charts
