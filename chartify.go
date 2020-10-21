@@ -306,8 +306,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	var generatedManifestFiles []string
 	if u.SkipDeps {
 		if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 {
-			r.Logf("Skipping `helm dependency up` on release %s's chart due to that you've set SkipDeps=true.\n" +
-				"This implies that you can't patch resources from the dependent charts.")
+			r.Logf("Skipping `helm dependency up` on release %s's chart due to that you've set SkipDeps=true.\n"+
+				"This implies that you can't patch resources from the dependent charts.", release)
 		}
 	} else {
 		// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
