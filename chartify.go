@@ -102,6 +102,8 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
+	isLocal, _ := r.Exists(dirOrChart)
+
 	isKustomization, err := r.Exists(filepath.Join(dirOrChart, "kustomization.yaml"))
 	if err != nil {
 		return "", err
@@ -304,17 +306,18 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	var generatedManifestFiles []string
-	if u.SkipDeps {
-		if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 {
+
+	if isLocal {
+		if u.SkipDeps {
 			r.Logf("Skipping `helm dependency up` on release %s's chart due to that you've set SkipDeps=true.\n"+
-				"This implies that you can't patch resources from the dependent charts.", release)
-		}
-	} else {
-		// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
-		// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-		_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
-		if err != nil {
-			return "", err
+				"This may result in outdated chart dependencies.", release)
+		} else {
+			// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
+			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
+			_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
+			if err != nil {
+				return "", err
+			}
 		}
 	}
 
