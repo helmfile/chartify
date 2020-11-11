@@ -71,7 +71,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 	// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
 	// - Replace charts/SUBCHART.tgz with rendered charts/SUBCHART/templates/*.yaml
-	// - REplace crds/*.yaml with rendered crds/*.yaml
+	// - Replace crds/*.yaml with rendered crds/*.yaml
 	for _, d := range ContentDirs {
 		origDir := filepath.Join(chartPath, d)
 		if err := os.RemoveAll(origDir); err != nil {

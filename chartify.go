@@ -407,8 +407,21 @@ func (r *Runner) EnsureFilesDir(tempDir string) (string, error) {
 	return filesDir, nil
 }
 
+// RewriteChartToPreventDoubleRendering rewrites templates/*.yaml files with
+// template files containing:
+//   {{ .Files.Get "path/to/the/yaml/file" }}
+// So that re-running helm-template on chartify's final output doesn't result in double-rendering.
+// Double-rendering accidentally renders e.g. go template expressions embedded in prometheus rules manifests,
+// which is not what the user wants.
 func (r *Runner) RewriteChartToPreventDoubleRendering(tempDir, filesDir string) error {
 	for _, d := range ContentDirs {
+		if d == "crds" {
+			// Do not rewrite crds/*.yaml, as `helm template --includec-crds` seem to
+			// render CRD yaml files as-is, without processing go template.
+			// Also see https://github.com/helm/helm/pull/7138/files
+			continue
+		}
+
 		srcDir := filepath.Join(tempDir, d)
 		dstDir := filepath.Join(filesDir, d)
 
