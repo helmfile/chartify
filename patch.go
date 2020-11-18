@@ -13,6 +13,8 @@ type PatchOpts struct {
 	JsonPatches []string
 
 	StrategicMergePatches []string
+
+	Transformers []string
 }
 
 func (o *PatchOpts) SetPatchOption(opts *PatchOpts) error {
@@ -117,6 +119,26 @@ resources:
 				return err
 			}
 			path := filepath.Join("strategicmergepatches", fmt.Sprintf("patch.%d.yaml", i))
+			abspath := filepath.Join(tempDir, path)
+			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
+				return err
+			}
+			if err := r.WriteFile(abspath, bytes, 0644); err != nil {
+				return err
+			}
+			kustomizationYamlContent += `- ` + path + "\n"
+		}
+	}
+
+	if len(u.Transformers) > 0 {
+		kustomizationYamlContent += `transformers:
+`
+		for i, f := range u.Transformers {
+			bytes, err := r.ReadFile(f)
+			if err != nil {
+				return err
+			}
+			path := filepath.Join("transformers", fmt.Sprintf("transformer.%d.yaml", i))
 			abspath := filepath.Join(tempDir, path)
 			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
 				return err

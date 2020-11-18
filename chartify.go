@@ -47,6 +47,10 @@ type ChartifyOpts struct {
 	JsonPatches           []string
 	StrategicMergePatches []string
 
+	// Transformers is the list of YAML files each defines a Kustomize transformer
+	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/configureBuiltinPlugin.md#configuring-the-builtin-plugins-instead for more information.
+	Transformers []string
+
 	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
@@ -356,10 +360,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 {
+	if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Transformers) > 0 {
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,
+			Transformers:          u.Transformers,
 		}
 		if err := r.Patch(tempDir, generatedManifestFiles, patchOpts); err != nil {
 			return "", err
