@@ -29,7 +29,7 @@ type Runner struct {
 	ReadFile    func(filename string) ([]byte, error)
 	ReadDir     func(dirname string) ([]os.FileInfo, error)
 	Walk        func(root string, walkFn filepath.WalkFunc) error
-	MakeTempDir func() string
+	MakeTempDir func(release, chart string, opts *ChartifyOpts) string
 	Exists      func(path string) (bool, error)
 
 	// Logf is the alternative log function used by chartify
@@ -70,13 +70,7 @@ func New(opts ...Option) *Runner {
 		Walk:            filepath.Walk,
 		Exists:          exists,
 		Logf:            printf,
-		MakeTempDir: func() string {
-			d, err := ioutil.TempDir(os.TempDir(), "chartify")
-			if err != nil {
-				panic(err)
-			}
-			return d
-		},
+		MakeTempDir:     makeTempDir,
 	}
 
 	for i := range opts {

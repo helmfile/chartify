@@ -115,15 +115,19 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	var tempDir string
 	if !isKustomization {
-		tempDir, err = r.copyToTempDir(dirOrChart, u.ChartVersion)
+		tempDir = r.MakeTempDir(release, dirOrChart, u)
+
+		tempDir, err = r.copyToTempDir(dirOrChart, tempDir, u.ChartVersion)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		tempDir = r.MakeTempDir()
+		tempDir = r.MakeTempDir(release, dirOrChart, u)
 	}
 
-	isChart, err := r.Exists(filepath.Join(tempDir, "Chart.yaml"))
+	chartYamlPath := filepath.Join(tempDir, "Chart.yaml")
+
+	isChart, err := r.Exists(chartYamlPath)
 	if err != nil {
 		return "", err
 	}
@@ -213,7 +217,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 		chartConfigTemplate := "name: \"%s\"\nversion: %s\nappVersion: %s\napiVersion: v2\n"
 		chartyaml := fmt.Sprintf(chartConfigTemplate, chartName, ver, ver)
-		if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartyaml), 0644); err != nil {
+
+		r.Logf("Writing %s", chartYamlPath)
+
+		if err := r.WriteFile(chartYamlPath, []byte(chartyaml), 0644); err != nil {
 			return "", err
 		}
 
@@ -501,8 +508,7 @@ func createDirForFile(f string) error {
 
 // copyToTempDir checks if the path is local or a repo (in this order) and copies it to a temp directory
 // It will perform a `helm fetch` if required
-func (r *Runner) copyToTempDir(path, chartVersion string) (string, error) {
-	tempDir := r.MakeTempDir()
+func (r *Runner) copyToTempDir(path, tempDir, chartVersion string) (string, error) {
 	exists, err := r.Exists(path)
 	if err != nil {
 		return "", err
