@@ -1,12 +1,14 @@
 package chartify
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/otiai10/copy"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"gopkg.in/yaml.v3"
 )
@@ -66,6 +68,11 @@ type ChartifyOpts struct {
 	// Useful for cases when the chart has a broken dependencies definition like seen in
 	// https://github.com/roboll/helmfile/issues/1547
 	SkipDeps bool
+
+	// TemplateFuncs is the FuncMap used while rendering .gotmpl files in the target directory
+	TemplateFuncs template.FuncMap
+	// TemplateData is the data available via {{ . }} within .gotmpl files
+	TemplateData interface{}
 }
 
 type ChartifyOption interface {
@@ -144,6 +151,39 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	overrideNamespace := u.OverrideNamespace
+
+	if !isChart {
+		templateFiles, err := r.SearchFiles(SearchFileOpts{
+			basePath: tempDir,
+			fileType: "gotmpl",
+		})
+		if err != nil {
+			return "", err
+		}
+
+		for _, absPath := range templateFiles {
+			tmpl := template.New(filepath.Base(absPath))
+			body, err := r.ReadFile(absPath)
+			if err != nil {
+				return "", err
+			}
+
+			tmpl, err = tmpl.Funcs(u.TemplateFuncs).Parse(string(body))
+			if err != nil {
+				return "", err
+			}
+
+			var buf bytes.Buffer
+
+			if err := tmpl.Execute(&buf, u.TemplateData); err != nil {
+				return "", err
+			}
+
+			if err := r.WriteFile(strings.TrimSuffix(absPath, filepath.Ext(absPath)), buf.Bytes(), 0644); err != nil {
+				return "", err
+			}
+		}
+	}
 
 	generatedManifestsUnderTemplatesDir := []string{}
 
