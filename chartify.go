@@ -152,7 +152,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	overrideNamespace := u.OverrideNamespace
 
-	if !isChart {
+	if !isChart && len(u.TemplateFuncs) > 0 {
 		templateFiles, err := r.SearchFiles(SearchFileOpts{
 			basePath: tempDir,
 			fileType: "gotmpl",
