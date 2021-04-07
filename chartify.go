@@ -3,12 +3,13 @@ package chartify
 import (
 	"bytes"
 	"fmt"
-	"github.com/otiai10/copy"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/otiai10/copy"
 
 	"gopkg.in/yaml.v3"
 )
@@ -271,6 +272,44 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 		if err := r.RewriteChartToPreventDoubleRendering(tempDir, filesDir); err != nil {
 			return "", err
+		}
+	}
+
+	// We need to remove the original Chart.yaml's `dependencies` field to
+	// avoid failing due to unnecesarily trying to fetch chart dependencies.
+	// Chart dependencies should already be rendered, patched, and included in the temporary chart
+	// we've generated so far. So we don't need to tell Helm to fetch chart dependencies, as they are already included.
+	if isChart {
+		type ChartMeta struct {
+			Dependencies []map[string]interface{} `yaml:"dependencies,omitempty"`
+			Data         map[string]interface{}   `yaml:",inline"`
+		}
+		var chartMeta ChartMeta
+
+		bytes, err := r.ReadFile(filepath.Join(tempDir, "Chart.yaml"))
+		if os.IsNotExist(err) {
+
+		} else if err != nil {
+			return "", err
+		} else {
+			if err := yaml.Unmarshal(bytes, &chartMeta); err != nil {
+				return "", err
+			}
+		}
+
+		if len(chartMeta.Dependencies) > 0 {
+			chartMeta.Dependencies = nil
+
+			chartYamlContent, err := yaml.Marshal(&chartMeta)
+			if err != nil {
+				return "", fmt.Errorf("marshalling-back %s's Chart.yaml: %w", release, err)
+			}
+
+			r.Logf("Removing the dependencies field from the original Chart.yaml.")
+
+			if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), chartYamlContent, 0644); err != nil {
+				return "", err
+			}
 		}
 	}
 
