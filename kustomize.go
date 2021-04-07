@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -131,10 +133,27 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
-	kustomizeArgs := []string{"-o", outputFile, "build", "--load_restrictor=none"}
-	if u.EnableAlphaPlugins {
-		kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
+	kustomizeArgs := []string{"-o", outputFile, "build"}
+
+	versionInfo, err := r.run(r.kustomizeBin(), "version", "--short")
+	version := strings.Split(strings.TrimPrefix(versionInfo, "{kustomize/v"), ".")
+	major, err := strconv.Atoi(version[0])
+	if err != nil {
+		r.Logf("Failed to parse `kustomize version` output: %v\nFalling-back to the kustomize v4 mode...", err)
 	}
+
+	if major > 3 {
+		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
+		if u.EnableAlphaPlugins {
+			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
+		}
+	} else {
+		kustomizeArgs = append(kustomizeArgs, "--load_restrictor=none")
+		if u.EnableAlphaPlugins {
+			kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
+		}
+	}
+
 	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return "", err
