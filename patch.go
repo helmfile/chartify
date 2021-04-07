@@ -42,7 +42,7 @@ apiversion: ""
 resources:
 `
 	for _, f := range generatedManifestFiles {
-		f = strings.Replace(f, tempDir+"/", "", 1)
+		f = strings.Replace(f, tempDir+string(filepath.Separator), "", 1)
 		kustomizationYamlContent += `- ` + f + "\n"
 	}
 
