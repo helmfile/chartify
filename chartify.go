@@ -70,6 +70,10 @@ type ChartifyOpts struct {
 	// https://github.com/roboll/helmfile/issues/1547
 	SkipDeps bool
 
+	// IncludeCRDs is a Helm 3 only option. When it is true, chartify passes a `--include-crds` flag
+	// to helm-template.
+	IncludeCRDs bool
+
 	// TemplateFuncs is the FuncMap used while rendering .gotmpl files in the target directory
 	TemplateFuncs template.FuncMap
 	// TemplateData is the data available via {{ . }} within .gotmpl files
@@ -417,6 +421,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		SetValues:    u.SetValues,
 		ValuesFiles:  u.ValuesFiles,
 		ChartVersion: u.ChartVersion,
+		IncludeCRDs:  u.IncludeCRDs,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
 	}

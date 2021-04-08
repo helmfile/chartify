@@ -23,6 +23,10 @@ type ReplaceWithRenderedOpts struct {
 	// ChartVersion is the semver of the Helm chart being used to render the original K8s manifests before various tweaks applied by helm-x
 	ChartVersion string
 
+	// IncludeCRDs is a Helm 3 only option. When it is true, chartify passes a `--include-crds` flag
+	// to helm-template.
+	IncludeCRDs bool
+
 	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
@@ -59,7 +63,18 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 	writtenFiles := map[string]bool{}
 	if r.isHelm3 {
-		command = fmt.Sprintf("%s template --debug=%v --include-crds --output-dir %s%s %s %s", r.helmBin(), o.Debug, helmOutputDir, additionalFlags, name, chartPath)
+		args := []string{
+			fmt.Sprintf("--debug=%v", o.Debug),
+			fmt.Sprintf("--output-dir=%s", helmOutputDir),
+		}
+
+		if o.IncludeCRDs {
+			args = append(args, "--include-crds")
+		}
+
+		args = append(args, name, chartPath)
+
+		command = fmt.Sprintf("%s template %s%s", r.helmBin(), strings.Join(args, " "), additionalFlags)
 	} else {
 		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chartPath, name, additionalFlags, helmOutputDir)
 	}
