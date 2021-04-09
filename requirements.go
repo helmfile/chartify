@@ -11,3 +11,9 @@ type Dependency struct {
 	Alias      string `yaml:"alias,omitempty"`
 	Version    string `yaml:"version,omitempty"`
 }
+
+type ChartDependency struct {
+	Alias   string
+	Chart   string
+	Version string
+}

@@ -45,7 +45,8 @@ type ChartifyOpts struct {
 	Injectors []string
 	Injects   []string
 
-	AdhocChartDependencies []string
+	AdhocChartDependencies           []ChartDependency
+	DeprecatedAdhocChartDependencies []string
 
 	JsonPatches           []string
 	StrategicMergePatches []string
@@ -330,12 +331,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	for _, d := range u.AdhocChartDependencies {
+	var adhocChartDependencies []ChartDependency
+
+	for _, d := range u.DeprecatedAdhocChartDependencies {
 		aliasChartVer := strings.Split(d, "=")
 		chartAndVer := strings.Split(aliasChartVer[len(aliasChartVer)-1], ":")
-		repoAndChart := strings.Split(chartAndVer[0], "/")
-		repo := repoAndChart[0]
-		chart := repoAndChart[1]
 		var ver string
 		if len(chartAndVer) == 1 {
 			ver = "*"
@@ -343,42 +343,69 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			ver = chartAndVer[1]
 		}
 		var alias string
-		if len(aliasChartVer) == 1 {
-			alias = chart
-		} else {
+		if len(aliasChartVer) > 1 {
 			alias = aliasChartVer[0]
 		}
 
-		var repoUrl string
-		out, err := r.run(r.helmBin(), "repo", "list")
-		if err != nil {
-			return "", err
+		adhocChartDependencies = append(adhocChartDependencies, ChartDependency{
+			Alias:   alias,
+			Chart:   chartAndVer[0],
+			Version: ver,
+		})
+	}
+
+	for _, d := range u.AdhocChartDependencies {
+		adhocChartDependencies = append(adhocChartDependencies, d)
+	}
+
+	for _, d := range adhocChartDependencies {
+		isLocalChart, _ := r.Exists(d.Chart)
+
+		var name, repoUrl string
+
+		if isLocalChart {
+			name = filepath.Base(d.Chart)
+			repoUrl = fmt.Sprintf("file://%s", d.Chart)
+		} else {
+			repoAndChart := strings.Split(d.Chart, "/")
+			repo := repoAndChart[0]
+			name = repoAndChart[1]
+
+			out, err := r.run(r.helmBin(), "repo", "list")
+			if err != nil {
+				return "", err
+			}
+			lines := strings.Split(out, "\n")
+			re := regexp.MustCompile(`\s+`)
+			for lineNum, line := range lines {
+				if lineNum == 0 {
+					continue
+				}
+				tokens := re.Split(line, -1)
+				if len(tokens) < 2 {
+					return "", fmt.Errorf("unexpected format of `helm repo list` at line %d \"%s\" in:\n%s", lineNum, line, out)
+				}
+				if tokens[0] == repo {
+					repoUrl = tokens[1]
+					break
+				}
+			}
+			if repoUrl == "" {
+				return "", fmt.Errorf("no helm list entry found for repository \"%s\". please `helm repo add` it!", repo)
+			}
 		}
-		lines := strings.Split(out, "\n")
-		re := regexp.MustCompile(`\s+`)
-		for lineNum, line := range lines {
-			if lineNum == 0 {
-				continue
-			}
-			tokens := re.Split(line, -1)
-			if len(tokens) < 2 {
-				return "", fmt.Errorf("unexpected format of `helm repo list` at line %d \"%s\" in:\n%s", lineNum, line, out)
-			}
-			if tokens[0] == repo {
-				repoUrl = tokens[1]
-				break
-			}
-		}
-		if repoUrl == "" {
-			return "", fmt.Errorf("no helm list entry found for repository \"%s\". please `helm repo add` it!", repo)
+
+		condName := d.Alias
+		if condName == "" {
+			condName = name
 		}
 
 		reqs.Dependencies = append(reqs.Dependencies, Dependency{
-			Name:       chart,
+			Name:       name,
 			Repository: repoUrl,
-			Condition:  fmt.Sprintf("%s.enabled", alias),
-			Alias:      alias,
-			Version:    ver,
+			Condition:  fmt.Sprintf("%s.enabled", condName),
+			Alias:      d.Alias,
+			Version:    d.Version,
 		})
 	}
 
@@ -402,7 +429,13 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	var generatedManifestFiles []string
 
 	if isLocal {
-		if u.SkipDeps {
+		// Note on `len(u.AdhocChartDependencies) == 0`:
+		// This special handling is required because adding adhoc chart dependencies
+		// means that you MUST run `helm dep up` and `helm dep build` to download the dependencies into the ./charts directory.
+		// Otherwise you end up getting:
+		//   Error: found in Chart.yaml, but missing in charts/ directory: $DEP_CHART_1, $DEP_CHART_2, ...`
+		// ...which effectively making this useless when used in e.g. helmfile
+		if u.SkipDeps && len(u.AdhocChartDependencies) == 0 {
 			r.Logf("Skipping `helm dependency up` on release %s's chart due to that you've set SkipDeps=true.\n"+
 				"This may result in outdated chart dependencies.", release)
 		} else {
