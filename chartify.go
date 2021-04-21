@@ -597,7 +597,14 @@ func (r *Runner) RewriteChartToPreventDoubleRendering(tempDir, filesDir string) 
 		// an error due to missing Chart.yaml for every `charts/SUBCHART`
 		if d == "charts" {
 			chartsDir := filepath.Join(tempDir, "charts")
-			templateChartsDir := filepath.Join(tempDir, "templates", "charts")
+			templatesDir := filepath.Join(tempDir, "templates")
+			templateChartsDir := filepath.Join(templatesDir, "charts")
+
+			// Otherwise the below Rename fail due to missing destination `templates` directory when
+			// the original chart had no `templates` directory. Yes, that's a valid chart.
+			if err := os.MkdirAll(templatesDir, 0755); err != nil {
+				return err
+			}
 
 			if err := os.Rename(chartsDir, templateChartsDir); err != nil {
 				return err
