@@ -1,12 +1,15 @@
 package chartify
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
-	"gopkg.in/yaml.v3"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type PatchOpts struct {
@@ -156,14 +159,120 @@ resources:
 
 	r.Logf("generated and using kustomization.yaml:\n%s", kustomizationYamlContent)
 
-	renderedFile := filepath.Join(tempDir, "all.patched.yaml")
+	renderedFileName := "all.patched.yaml"
+	renderedFile := filepath.Join(tempDir, renderedFileName)
 	r.Logf("Generating %s", renderedFile)
 	_, err := r.run(r.kustomizeBin(), "build", tempDir, "--output", renderedFile)
 	if err != nil {
 		return err
 	}
 
-	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "kustomization.yaml")
+	var resources, crds []string
+
+	bs, err := ioutil.ReadFile(renderedFile)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", renderedFileName, err)
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(bs))
+
+	// Forget about resource consumption and
+	// use the file size as the buffer size, so that we will never
+	// mis-parse looong YAML due to buffer isn't large enough to
+	// contain the YAML document separator...
+	buffer := make([]byte, 0, len(bs))
+	scanner.Buffer(buffer, len(bs))
+
+	split := func(d []byte, atEOF bool) (int, []byte, error) {
+		if atEOF {
+			if len(d) == 0 {
+				return 0, nil, nil
+			}
+
+			return len(d), d, nil
+		}
+
+		if i := bytes.Index(d, []byte("---\n")); i >= 0 {
+			return i + 4, d[0:i], nil
+		}
+
+		// "SplitFunc can return (0, nil, nil) to signal the Scanner to read more data into the slice and try again with a longer slice starting at the same point in the input."
+		//https://golang.org/pkg/bufio/#SplitFunc
+		return 0, nil, nil
+	}
+	scanner.Split(split)
+	for scanner.Scan() {
+		t := scanner.Text()
+
+		type res struct {
+			Kind string `yaml:"kind"`
+		}
+		var r res
+
+		if err := yaml.Unmarshal([]byte(t), &r); err != nil {
+			return fmt.Errorf("processing %s: parsing yaml doc from %q: %w", renderedFileName, t, err)
+		}
+
+		if r.Kind == "CustomResourceDefinition" {
+			crds = append(crds, t)
+		} else {
+			resources = append(resources, t)
+		}
+	}
+
+	r.Logf("Detected %d resources and %d CRDs", len(resources), len(crds))
+
+	resourcesFile := filepath.Join(tempDir, "all.patched.resources.yaml")
+	crdsFile := filepath.Join(tempDir, "all.patched.crds.yaml")
+
+	err = func() error {
+		f, err := os.Create(resourcesFile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		w := bufio.NewWriter(f)
+
+		for _, resource := range resources {
+			w.WriteString(resource)
+			w.WriteString("---\n")
+		}
+
+		if err := w.Flush(); err != nil {
+			return err
+		}
+
+		return f.Sync()
+	}()
+	if err != nil {
+		return fmt.Errorf("writing %s: %w", resourcesFile, err)
+	}
+
+	err = func() error {
+		f, err := os.Create(crdsFile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		w := bufio.NewWriter(f)
+		for _, crd := range crds {
+			w.WriteString(crd)
+			w.WriteString("---\n")
+		}
+
+		if err := w.Flush(); err != nil {
+			return err
+		}
+
+		return f.Sync()
+	}()
+	if err != nil {
+		return fmt.Errorf("writing %s: %w", crdsFile, err)
+	}
+
+	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "kustomization.yaml", renderedFileName)
 
 	for _, f := range removedPathList {
 		d := filepath.Join(tempDir, f)
@@ -173,14 +282,33 @@ resources:
 		}
 	}
 
-	templatesDir := filepath.Join(tempDir, "templates")
-	if err := os.MkdirAll(templatesDir, 0755); err != nil {
-		return err
+	if len(crds) > 0 {
+		var crdsDir string
+
+		if r.isHelm3 {
+			crdsDir = filepath.Join(tempDir, "crds")
+		} else {
+			crdsDir = filepath.Join(tempDir, "templates")
+		}
+
+		if err := os.MkdirAll(crdsDir, 0755); err != nil {
+			return err
+		}
+
+		if err := os.Rename(crdsFile, filepath.Join(crdsDir, "patched_crds.yaml")); err != nil {
+			return err
+		}
 	}
 
-	final := filepath.Join(templatesDir, "patched.yaml")
-	if err := os.Rename(renderedFile, final); err != nil {
-		return err
+	if len(resources) > 0 {
+		templatesDir := filepath.Join(tempDir, "templates")
+		if err := os.MkdirAll(templatesDir, 0755); err != nil {
+			return err
+		}
+
+		if err := os.Rename(resourcesFile, filepath.Join(templatesDir, "patched_resources.yaml")); err != nil {
+			return err
+		}
 	}
 
 	return nil
