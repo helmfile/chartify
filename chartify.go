@@ -33,8 +33,13 @@ type ChartifyOpts struct {
 	// ValuesFiles are a list of Helm chart values files
 	ValuesFiles []string
 
+	// DEPRECATED: Use SetFlags instead.
 	// SetValues is a list of adhoc Helm chart values being passed via helm's `--set` flags
 	SetValues []string
+
+	// SetFlags is the list of set flags like --set k=v, --set-file k=path, --set-string k=str
+	// used while rendering the chart.
+	SetFlags []string
 
 	// Namespace is the default namespace in which the K8s manifests rendered by the chart are associated
 	Namespace string
@@ -208,6 +213,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		kustomOpts := &KustomizeBuildOpts{
 			ValuesFiles:        u.ValuesFiles,
 			SetValues:          u.SetValues,
+			SetFlags:           u.SetFlags,
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
 			Namespace:          u.Namespace,
 		}
@@ -478,6 +484,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		Debug:        u.Debug,
 		Namespace:    u.Namespace,
 		SetValues:    u.SetValues,
+		SetFlags:     u.SetFlags,
 		ValuesFiles:  u.ValuesFiles,
 		ChartVersion: u.ChartVersion,
 		IncludeCRDs:  u.IncludeCRDs,

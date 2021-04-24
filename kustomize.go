@@ -42,6 +42,7 @@ func (img KustomizeImage) String() string {
 type KustomizeBuildOpts struct {
 	ValuesFiles        []string
 	SetValues          []string
+	SetFlags           []string
 	EnableAlphaPlugins bool
 	Namespace          string
 }
@@ -79,7 +80,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		kustomizeOpts.Namespace = u.Namespace
 	}
 
-	if len(u.SetValues) > 0 {
+	if len(u.SetValues) > 0 || len(u.SetFlags) > 0 {
 		panic("--set is not yet supported for kustomize-based apps! Use -f/--values flag instead.")
 	}
 

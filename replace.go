@@ -17,6 +17,10 @@ type ReplaceWithRenderedOpts struct {
 	// SetValues is a list of adhoc Helm chart values being passed via helm's `--set` flags
 	SetValues []string
 
+	// SetFlags is the list of set flags like --set k=v, --set-file k=path, --set-string k=str
+	// used while rendering the chart.
+	SetFlags []string
+
 	// Namespace is the default namespace in which the K8s manifests rendered by the chart are associated
 	Namespace string
 
@@ -36,6 +40,9 @@ type ReplaceWithRenderedOpts struct {
 func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o ReplaceWithRenderedOpts) ([]string, error) {
 	var additionalFlags string
 	additionalFlags += createFlagChain("set", o.SetValues)
+	if len(o.SetFlags) > 0 {
+		additionalFlags += " " + strings.Join(o.SetFlags, " ")
+	}
 	defaultValuesPath := filepath.Join(chartPath, "values.yaml")
 	exists, err := r.Exists(defaultValuesPath)
 	if err != nil {
