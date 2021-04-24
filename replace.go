@@ -118,7 +118,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 			for _, d := range ContentDirs {
 				origDir := filepath.Join(chartPath, d)
 				newDir := filepath.Join(chartOutputDir, d)
-				file = strings.ReplaceAll(file, newDir, origDir)
+				file = strings.ReplaceAll(strings.ReplaceAll(file, "/", string(filepath.Separator)), newDir, origDir)
 			}
 
 			writtenFiles[file] = true
