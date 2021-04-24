@@ -576,7 +576,7 @@ func (r *Runner) RewriteChartToPreventDoubleRendering(tempDir, filesDir string) 
 				return fmt.Errorf("calculating relative path to %s from %s: %v", path, filesDir, err)
 			}
 
-			content := []byte(fmt.Sprintf(`{{ .Files.Get "files/%s" }}`, rel))
+			content := []byte(fmt.Sprintf(`{{ .Files.Get "files/%s" }}`, filepath.ToSlash(rel)))
 
 			f := filepath.Join(tempDir, rel)
 
