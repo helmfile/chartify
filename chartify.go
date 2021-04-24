@@ -39,8 +39,13 @@ type ChartifyOpts struct {
 	// Namespace is the default namespace in which the K8s manifests rendered by the chart are associated
 	Namespace string
 
-	// ChartVersion is the semver of the Helm chart being used to render the original K8s manifests before various tweaks applied by helm-x
+	// ChartVersion is the semver of the Helm chart being used to render the original K8s manifests before various tweaks applied by helm-x,
+	// or the chart version to be filled in the Chart.yaml of the temporary chart generated from K8s manifests or kustomize project.
+	// In the latter case, this defaults to "1.0.0" if empty.
 	ChartVersion string
+
+	// AppVersion is the optional appVersion of the temporary chart.
+	AppVersion string
 
 	// TillerNamespace is the namespace Tiller or Helm v3 creates "release" objects(configmaps or secrets depending on the storage backend chosen)
 	TillerNamespace string
@@ -267,12 +272,14 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			ver = "1.0.0"
 			r.Logf("using the default chart version 1.0.0 due to that no ChartVersion is specified")
 		}
-		chartConfigTemplate := "name: \"%s\"\nversion: %s\nappVersion: %s\napiVersion: v2\n"
-		chartyaml := fmt.Sprintf(chartConfigTemplate, chartName, ver, ver)
+		chartYamlContent := fmt.Sprintf("name: %q\nversion: %s\napiVersion: v2\n", chartName, ver)
+		if u.AppVersion != "" {
+			chartYamlContent += fmt.Sprintf("appVersion: %q\n", u.AppVersion)
+		}
 
 		r.Logf("Writing %s", chartYamlPath)
 
-		if err := r.WriteFile(chartYamlPath, []byte(chartyaml), 0644); err != nil {
+		if err := r.WriteFile(chartYamlPath, []byte(chartYamlContent), 0644); err != nil {
 			return "", err
 		}
 
@@ -434,6 +441,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	var generatedManifestFiles []string
 
+	// If the chart is a local chart, or a temporary chart being generated from K8s manifests or Kustomize,
+	// there's no `helm fetch` before.
+	// For a remote chart, `helm fetch` seems to download the dependencies altogether, but
+	// as we didn't run `helm fetch` in this scenario we have to download dependencies here.
 	if isLocal {
 		// Note on `len(u.AdhocChartDependencies) == 0`:
 		// This special handling is required because adding adhoc chart dependencies
@@ -451,6 +462,15 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			if err != nil {
 				return "", err
 			}
+		}
+	} else if len(adhocChartDependencies) > 0 {
+		// The chart is a remote chart so we should have already run `helm fetch` that downloads both the chart
+		// and its dependencies. But ovbiously, previous `helm fetch` run doesn't download the adhoc dependencies we added
+		// after running `helm fetch`.
+		// We need to download adhoc dependencies on our own by running helmfile dependency up.
+		_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
+		if err != nil {
+			return "", err
 		}
 	}
 
