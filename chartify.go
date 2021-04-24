@@ -19,6 +19,12 @@ var (
 )
 
 type ChartifyOpts struct {
+	// ID is the ID of the temporary chart being generated.
+	// The ID is used in e.g. the directory name of the temporary local chart
+	// genereated by chartify.
+	// If it's empty, chartify generates one from the release namd, the chart name, and the hash of chartify options.
+	ID string
+
 	// Debug when set to true passes `--debug` flag to `helm` in order to enable debug logging
 	Debug bool
 

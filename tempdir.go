@@ -14,9 +14,16 @@ import (
 )
 
 func makeTempDir(release, chart string, opts *ChartifyOpts) string {
-	id, err := GenerateID(release, chart, opts)
-	if err != nil {
-		panic(err)
+	var err error
+
+	var id string
+	if opts.ID != "" {
+		id = strings.ReplaceAll(opts.ID, "/", string(filepath.Separator))
+	} else {
+		id, err = GenerateID(release, chart, opts)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	workDir := os.Getenv(EnvVarTempDir)
