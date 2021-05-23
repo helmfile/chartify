@@ -691,6 +691,16 @@ func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (str
 		return "", err
 	}
 
+	chartNameComponents := strings.Split(chart, "/")
+	chartName := chartNameComponents[len(chartNameComponents)-1]
+	chartsDir := filepath.Join(tempDir, chartName, "charts")
+	if _, err := os.Stat(chartsDir); err == nil {
+		r.Logf("Removing %s to avoid https://github.com/roboll/helmfile/issues/1857", chartsDir)
+		if err := os.RemoveAll(chartsDir); err != nil {
+			return "", fmt.Errorf("failed to remove charts dir %s to avoid https://github.com/roboll/helmfile/issues/1857: %v", chartsDir, err)
+		}
+	}
+
 	files, err := r.ReadDir(tempDir)
 	if err != nil {
 		return "", err
