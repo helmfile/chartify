@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type ReplaceWithRenderedOpts struct {
@@ -144,6 +146,76 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	for f := range writtenFiles {
 		results = append(results, f)
 	}
+
+	// Avoids errors like the below due to Chart.yaml containing already dependencies that are already rendered
+	// and included in the files and the templates directories.
+	//   Error: found in Chart.yaml, but missing in charts/ directory: common, kibana
+	if r.IsHelm3() {
+		type ChartMeta struct {
+			Dependencies []Dependency           `yaml:"dependencies,omitempty"`
+			Data         map[string]interface{} `yaml:",inline"`
+		}
+		var chartMeta ChartMeta
+
+		chartYamlPath := filepath.Join(chartPath, "Chart.yaml")
+
+		bytes, err := r.ReadFile(chartYamlPath)
+		if os.IsNotExist(err) {
+
+		} else if err != nil {
+			return nil, err
+		} else {
+			if err := yaml.Unmarshal(bytes, &chartMeta); err != nil {
+				return nil, err
+			}
+		}
+
+		chartMeta.Dependencies = nil
+
+		chartYamlContent, err := yaml.Marshal(&chartMeta)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling-back %s's Chart.yaml: %w", chartName, err)
+		}
+
+		r.Logf("Removing the dependencies field from the original Chart.yaml.")
+
+		if err := r.WriteFile(chartYamlPath, chartYamlContent, 0644); err != nil {
+			return nil, err
+		}
+	} else {
+		var reqs Requirements
+
+		bytes, err := r.ReadFile(filepath.Join(chartPath, "requirements.yaml"))
+		if os.IsNotExist(err) {
+
+		} else if err != nil {
+			return nil, err
+		} else {
+			if err := yaml.Unmarshal(bytes, &reqs); err != nil {
+				return nil, err
+			}
+		}
+
+		reqs.Dependencies = nil
+
+		requirementsYamlContent, err := yaml.Marshal(&reqs)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling %s's requirements as YAML: %w", chartName, err)
+		}
+
+		if err := r.WriteFile(filepath.Join(chartPath, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
+			return nil, err
+		}
+
+		{
+			debugOut, err := r.ReadFile(filepath.Join(chartPath, "requirements.yaml"))
+			if err != nil {
+				return nil, err
+			}
+			r.Logf("using requirements.yaml:\n%s", debugOut)
+		}
+	}
+
 	return results, nil
 }
 
