@@ -299,30 +299,35 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	// We need to remove the original Chart.yaml's `dependencies` field to
-	// avoid failing due to unnecesarily trying to fetch chart dependencies.
-	// Chart dependencies should already be rendered, patched, and included in the temporary chart
-	// we've generated so far. So we don't need to tell Helm to fetch chart dependencies, as they are already included.
-	if isChart {
-		type ChartMeta struct {
-			Dependencies []map[string]interface{} `yaml:"dependencies,omitempty"`
-			Data         map[string]interface{}   `yaml:",inline"`
-		}
-		var chartMeta ChartMeta
+	deps, err := r.ReadAdhocDependencies(u)
+	if err != nil {
+		return "", fmt.Errorf("failed reading adhoc dependencies: %w", err)
+	}
 
-		bytes, err := r.ReadFile(filepath.Join(tempDir, "Chart.yaml"))
-		if os.IsNotExist(err) {
-
-		} else if err != nil {
-			return "", err
-		} else {
-			if err := yaml.Unmarshal(bytes, &chartMeta); err != nil {
-				return "", err
+	if len(deps) > 0 {
+		// We need to remove the original Chart.yaml's `dependencies` field to
+		// avoid failing due to unnecesarily trying to fetch chart dependencies.
+		// Chart dependencies should already be rendered, patched, and included in the temporary chart
+		// we've generated so far. So we don't need to tell Helm to fetch chart dependencies, as they are already included.
+		if r.IsHelm3() {
+			type ChartMeta struct {
+				Dependencies []Dependency           `yaml:"dependencies,omitempty"`
+				Data         map[string]interface{} `yaml:",inline"`
 			}
-		}
+			var chartMeta ChartMeta
 
-		if len(chartMeta.Dependencies) > 0 {
-			chartMeta.Dependencies = nil
+			bytes, err := r.ReadFile(chartYamlPath)
+			if os.IsNotExist(err) {
+
+			} else if err != nil {
+				return "", err
+			} else {
+				if err := yaml.Unmarshal(bytes, &chartMeta); err != nil {
+					return "", err
+				}
+			}
+
+			chartMeta.Dependencies = append(chartMeta.Dependencies, deps...)
 
 			chartYamlContent, err := yaml.Marshal(&chartMeta)
 			if err != nil {
@@ -334,115 +339,43 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), chartYamlContent, 0644); err != nil {
 				return "", err
 			}
-		}
-	}
-
-	var reqs Requirements
-
-	bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
-	if os.IsNotExist(err) {
-
-	} else if err != nil {
-		return "", err
-	} else {
-		if err := yaml.Unmarshal(bytes, &reqs); err != nil {
-			return "", err
-		}
-	}
-
-	var adhocChartDependencies []ChartDependency
-
-	for _, d := range u.DeprecatedAdhocChartDependencies {
-		aliasChartVer := strings.Split(d, "=")
-		chartAndVer := strings.Split(aliasChartVer[len(aliasChartVer)-1], ":")
-		var ver string
-		if len(chartAndVer) == 1 {
-			ver = "*"
 		} else {
-			ver = chartAndVer[1]
-		}
-		var alias string
-		if len(aliasChartVer) > 1 {
-			alias = aliasChartVer[0]
-		}
+			var reqs Requirements
 
-		adhocChartDependencies = append(adhocChartDependencies, ChartDependency{
-			Alias:   alias,
-			Chart:   chartAndVer[0],
-			Version: ver,
-		})
-	}
+			bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
+			if os.IsNotExist(err) {
 
-	for _, d := range u.AdhocChartDependencies {
-		adhocChartDependencies = append(adhocChartDependencies, d)
-	}
+			} else if err != nil {
+				return "", err
+			} else {
+				if err := yaml.Unmarshal(bytes, &reqs); err != nil {
+					return "", err
+				}
+			}
 
-	for _, d := range adhocChartDependencies {
-		isLocalChart, _ := r.Exists(d.Chart)
-
-		var name, repoUrl string
-
-		if isLocalChart {
-			name = filepath.Base(d.Chart)
-			repoUrl = fmt.Sprintf("file://%s", d.Chart)
-		} else {
-			repoAndChart := strings.Split(d.Chart, "/")
-			repo := repoAndChart[0]
-			name = repoAndChart[1]
-
-			out, err := r.run(r.helmBin(), "repo", "list")
+			deps, err := r.ReadAdhocDependencies(u)
 			if err != nil {
+				return "", fmt.Errorf("failed reading adhoc dependencies: %w", err)
+			}
+			reqs.Dependencies = deps
+
+			requirementsYamlContent, err := yaml.Marshal(&reqs)
+			if err != nil {
+				return "", fmt.Errorf("marshalling %s's requirements as YAML: %w", release, err)
+			}
+
+			if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
 				return "", err
 			}
-			lines := strings.Split(out, "\n")
-			re := regexp.MustCompile(`\s+`)
-			for lineNum, line := range lines {
-				if lineNum == 0 {
-					continue
+
+			{
+				debugOut, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
+				if err != nil {
+					return "", err
 				}
-				tokens := re.Split(line, -1)
-				if len(tokens) < 2 {
-					return "", fmt.Errorf("unexpected format of `helm repo list` at line %d \"%s\" in:\n%s", lineNum, line, out)
-				}
-				if tokens[0] == repo {
-					repoUrl = tokens[1]
-					break
-				}
-			}
-			if repoUrl == "" {
-				return "", fmt.Errorf("no helm list entry found for repository \"%s\". please `helm repo add` it!", repo)
+				r.Logf("using requirements.yaml:\n%s", debugOut)
 			}
 		}
-
-		condName := d.Alias
-		if condName == "" {
-			condName = name
-		}
-
-		reqs.Dependencies = append(reqs.Dependencies, Dependency{
-			Name:       name,
-			Repository: repoUrl,
-			Condition:  fmt.Sprintf("%s.enabled", condName),
-			Alias:      d.Alias,
-			Version:    d.Version,
-		})
-	}
-
-	requirementsYamlContent, err := yaml.Marshal(&reqs)
-	if err != nil {
-		return "", fmt.Errorf("marshalling %s's requirements as YAML: %w", release, err)
-	}
-
-	if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
-		return "", err
-	}
-
-	{
-		debugOut, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
-		if err != nil {
-			return "", err
-		}
-		r.Logf("using requirements.yaml:\n%s", debugOut)
 	}
 
 	var generatedManifestFiles []string
@@ -469,7 +402,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				return "", err
 			}
 		}
-	} else if len(adhocChartDependencies) > 0 {
+	} else if len(u.AdhocChartDependencies) > 0 {
 		// The chart is a remote chart so we should have already run `helm fetch` that downloads both the chart
 		// and its dependencies. But ovbiously, previous `helm fetch` run doesn't download the adhoc dependencies we added
 		// after running `helm fetch`.
@@ -503,13 +436,6 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	// No need to double-render them by leaving requirements.yaml/lock and downloaded sub-charts
 	_ = os.Remove(filepath.Join(tempDir, "requirements.yaml"))
 	_ = os.Remove(filepath.Join(tempDir, "requirements.lock"))
-
-	var chartNames []string
-
-	chartNames = append(chartNames, filepath.Base(dirOrChart))
-	for _, r := range reqs.Dependencies {
-		chartNames = append(chartNames, r.Alias)
-	}
 
 	if overrideNamespace != "" {
 		if err := r.SetNamespace(tempDir, overrideNamespace); err != nil {
@@ -555,6 +481,89 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	}
 
 	return tempDir, nil
+}
+
+func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
+	var deps []Dependency
+	var adhocChartDependencies []ChartDependency
+
+	for _, d := range u.DeprecatedAdhocChartDependencies {
+		aliasChartVer := strings.Split(d, "=")
+		chartAndVer := strings.Split(aliasChartVer[len(aliasChartVer)-1], ":")
+		var ver string
+		if len(chartAndVer) == 1 {
+			ver = "*"
+		} else {
+			ver = chartAndVer[1]
+		}
+		var alias string
+		if len(aliasChartVer) > 1 {
+			alias = aliasChartVer[0]
+		}
+
+		adhocChartDependencies = append(adhocChartDependencies, ChartDependency{
+			Alias:   alias,
+			Chart:   chartAndVer[0],
+			Version: ver,
+		})
+	}
+
+	for _, d := range u.AdhocChartDependencies {
+		adhocChartDependencies = append(adhocChartDependencies, d)
+	}
+
+	for _, d := range adhocChartDependencies {
+		isLocalChart, _ := r.Exists(d.Chart)
+
+		var name, repoUrl string
+
+		if isLocalChart {
+			name = filepath.Base(d.Chart)
+			repoUrl = fmt.Sprintf("file://%s", d.Chart)
+		} else {
+			repoAndChart := strings.Split(d.Chart, "/")
+			repo := repoAndChart[0]
+			name = repoAndChart[1]
+
+			out, err := r.run(r.helmBin(), "repo", "list")
+			if err != nil {
+				return nil, err
+			}
+			lines := strings.Split(out, "\n")
+			re := regexp.MustCompile(`\s+`)
+			for lineNum, line := range lines {
+				if lineNum == 0 {
+					continue
+				}
+				tokens := re.Split(line, -1)
+				if len(tokens) < 2 {
+					return nil, fmt.Errorf("unexpected format of `helm repo list` at line %d \"%s\" in:\n%s", lineNum, line, out)
+				}
+				if tokens[0] == repo {
+					repoUrl = tokens[1]
+					break
+				}
+			}
+			if repoUrl == "" {
+				return nil, fmt.Errorf("no helm list entry found for repository \"%s\". please `helm repo add` it!", repo)
+			}
+		}
+
+		condName := d.Alias
+		if condName == "" {
+			condName = name
+		}
+
+		deps = append(deps, Dependency{
+			Name:       name,
+			Repository: repoUrl,
+			Condition:  fmt.Sprintf("%s.enabled", condName),
+			Alias:      d.Alias,
+			Version:    d.Version,
+		})
+	}
+
+	return deps, nil
 }
 
 func (r *Runner) EnsureFilesDir(tempDir string) (string, error) {
