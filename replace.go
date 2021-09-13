@@ -33,6 +33,13 @@ type ReplaceWithRenderedOpts struct {
 	// to helm-template.
 	IncludeCRDs bool
 
+	// Validate is a Helm 3 only option. When it is true, chartify passes --validate while running helm-template
+	// It is required when your chart contains any template that relies on Capabilities.APIVersions
+	// for rendering resourecs depending on the API resources and versions available on a live cluster.
+	// In other words, setting this to true means that you need access to a Kubernetes cluster,
+	// even if you aren't trying to install the generated chart onto the cluster.
+	Validate bool
+
 	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
@@ -79,6 +86,10 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 		if o.IncludeCRDs {
 			args = append(args, "--include-crds")
+		}
+
+		if o.Validate {
+			args = append(args, "--validate")
 		}
 
 		args = append(args, name, chartPath)

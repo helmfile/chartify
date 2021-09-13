@@ -91,6 +91,13 @@ type ChartifyOpts struct {
 	// to helm-template.
 	IncludeCRDs bool
 
+	// Validate is a Helm 3 only option. When it is true, chartify passes --validate while running helm-template
+	// It is required when your chart contains any template that relies on Capabilities.APIVersions
+	// for rendering resourecs depending on the API resources and versions available on a live cluster.
+	// In other words, setting this to true means that you need access to a Kubernetes cluster,
+	// even if you aren't trying to install the generated chart onto the cluster.
+	Validate bool
+
 	// TemplateFuncs is the FuncMap used while rendering .gotmpl files in the target directory
 	TemplateFuncs template.FuncMap
 	// TemplateData is the data available via {{ . }} within .gotmpl files
@@ -421,6 +428,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		ValuesFiles:  u.ValuesFiles,
 		ChartVersion: u.ChartVersion,
 		IncludeCRDs:  u.IncludeCRDs,
+		Validate:     u.Validate,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
 	}
