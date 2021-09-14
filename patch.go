@@ -200,10 +200,8 @@ resources:
 		//https://golang.org/pkg/bufio/#SplitFunc
 		return 0, nil, nil
 	}
-	scanner.Split(split)
-	for scanner.Scan() {
-		t := scanner.Text()
 
+	consume := func(t string) error {
 		type res struct {
 			Kind string `yaml:"kind"`
 		}
@@ -217,6 +215,30 @@ resources:
 			crds = append(crds, t)
 		} else {
 			resources = append(resources, t)
+		}
+
+		return nil
+	}
+
+	var scanned bool
+
+	scanner.Split(split)
+	for scanner.Scan() {
+		scanned = true
+
+		t := scanner.Text()
+
+		if err := consume(t); err != nil {
+			return err
+		}
+	}
+
+	// When the scanner managed to provide all the buffer on first scan, `split` func ends up
+	// returning `0, nil, nil` and stops the scanner.
+	// In other words, a single resourced chart can never be patched if we didn't handle that case.
+	if !scanned {
+		if err := consume(string(bs)); err != nil {
+			return err
 		}
 	}
 
