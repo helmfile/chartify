@@ -77,7 +77,7 @@ func TestIntegration(t *testing.T) {
 			fileList: "testdata/prometheus-operator-adhoc-dep/filelist.yaml",
 			opts: ChartifyOpts{
 				ChartVersion:           "9.2.2",
-				AdhocChartDependencies: []string{"my=stable/mysql:1.6.6"},
+				AdhocChartDependencies: []ChartDependency{{"my","stable/mysql","1.6.6"}},
 			},
 		},
 		{
@@ -109,7 +109,7 @@ func TestIntegration(t *testing.T) {
 			opts: ChartifyOpts{
 				ValuesFiles:            []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/values.yaml"},
 				ChartVersion:           "9.2.1",
-				AdhocChartDependencies: []string{"my=stable/mysql:1.6.6"},
+				AdhocChartDependencies: []ChartDependency{{"my","stable/mysql","1.6.6"}},
 				StrategicMergePatches:  []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/strategicpatch.yaml"},
 			},
 		},
