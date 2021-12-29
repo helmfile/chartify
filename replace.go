@@ -149,10 +149,6 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		return nil, fmt.Errorf("invalid state: no files rendered")
 	}
 
-	if err := os.RemoveAll(helmOutputDir); err != nil {
-		return nil, fmt.Errorf("cleaning up unnecessary files after replace: %v", err)
-	}
-
 	results := make([]string, 0, len(writtenFiles))
 	for f := range writtenFiles {
 		results = append(results, f)
