@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/variantdev/chartify"
 	"os"
+	"strings"
+
+	"github.com/variantdev/chartify"
 )
 
 type stringSlice []string
@@ -42,11 +44,22 @@ func main() {
 
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
-	flag.Var(&deps, "d", "one or more \"alias=chart:verion\" to add adhoc chart dependencies")
+	flag.Var(&deps, "d", "one or more \"alias=chart:version\" to add adhoc chart dependencies")
 
 	flag.Parse()
 
-	opts.AdhocChartDependencies = deps
+	chartDeps := make([]chartify.ChartDependency, 0)
+	for _, dep := range deps {
+		sliceOfText := strings.Split(dep, "=")
+		alias := sliceOfText[0]
+		sliceOfChart := strings.Split(sliceOfText[1],":")
+		chart := sliceOfChart[0]
+		version := sliceOfChart[1]
+		a := chartify.ChartDependency {Alias: alias, Chart: chart, Version: version}
+		chartDeps = append(chartDeps, a)
+	}
+
+	opts.AdhocChartDependencies = chartDeps
 
 	c := chartify.New(chartify.UseHelm3(true), chartify.HelmBin("helm"))
 
