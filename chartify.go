@@ -698,13 +698,13 @@ func (r *Runner) copyToTempDir(path, tempDir, chartVersion string) (string, erro
 }
 
 func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (string, error) {
-	command := fmt.Sprintf("helm fetch %s --untar -d %s", chart, tempDir)
+	command := []string{"fetch", chart, "--untar", "-d", tempDir}
 
 	if chartVersion != "" {
-		command += fmt.Sprintf(" --version %s", chartVersion)
+		command = append(command, "--version", chartVersion)
 	}
 
-	if _, err := r.run(command); err != nil {
+	if _, err := r.run(r.helmBin(), command...); err != nil {
 		return "", err
 	}
 
