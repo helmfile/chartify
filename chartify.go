@@ -98,6 +98,13 @@ type ChartifyOpts struct {
 	// even if you aren't trying to install the generated chart onto the cluster.
 	Validate bool
 
+	// ApiVersions is a string of kubernetes APIVersions and passed to helm template via --api-versions
+	// It is required if your chart contains any template that relies on Capabilities.APIVersion for rendering
+	// resources depending on the API resources and versions available in a target cluster.
+	// Setting this value defines a set of static capabilities and avoids the need for access to a live cluster during
+	// templating in contrast to --validate
+	ApiVersions []string
+
 	// TemplateFuncs is the FuncMap used while rendering .gotmpl files in the target directory
 	TemplateFuncs template.FuncMap
 	// TemplateData is the data available via {{ . }} within .gotmpl files
@@ -429,6 +436,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		ChartVersion: u.ChartVersion,
 		IncludeCRDs:  u.IncludeCRDs,
 		Validate:     u.Validate,
+		ApiVersions:  u.ApiVersions,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
 	}

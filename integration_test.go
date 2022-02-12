@@ -70,14 +70,14 @@ func TestIntegration(t *testing.T) {
 		},
 		{
 			// Ensure that adhoc chart dependencies work with existing requirements.yaml with different
-			// arrray item indentation
+			// array item indentation
 			release:  "testrelease",
 			chart:    "stable/prometheus-operator",
 			snapshot: "testdata/prometheus-operator-adhoc-dep/output",
 			fileList: "testdata/prometheus-operator-adhoc-dep/filelist.yaml",
 			opts: ChartifyOpts{
 				ChartVersion:           "9.2.2",
-				AdhocChartDependencies: []string{"my=stable/mysql:1.6.6"},
+				AdhocChartDependencies: []ChartDependency{{Alias:"stable",Chart:"mysql",Version:"1.6.6"},},
 			},
 		},
 		{
@@ -109,7 +109,7 @@ func TestIntegration(t *testing.T) {
 			opts: ChartifyOpts{
 				ValuesFiles:            []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/values.yaml"},
 				ChartVersion:           "9.2.1",
-				AdhocChartDependencies: []string{"my=stable/mysql:1.6.6"},
+				AdhocChartDependencies: []ChartDependency{{Alias:"stable",Chart:"mysql",Version:"1.6.6"},},
 				StrategicMergePatches:  []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/strategicpatch.yaml"},
 			},
 		},
