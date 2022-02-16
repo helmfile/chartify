@@ -192,7 +192,7 @@ resources:
 			return len(d), d, nil
 		}
 
-		if i := bytes.Index(d, []byte("---\n")); i >= 0 {
+		if i := bytes.Index(d, []byte("\n---\n")); i >= 0 {
 			return i + 4, d[0:i], nil
 		}
 
