@@ -4,7 +4,6 @@ metadata:
   name: myconfig
 data:
   foo: baz
-  # See also https://github.com/variantdev/chartify/issues/18
   bar: |
     -----BEGIN CERTIFICATE-----
     FOO
