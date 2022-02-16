@@ -6,7 +6,7 @@ metadata:
   namespace: foo
 data:
   foo: baz
-  bar: |
+  baz: |
     -----BEGIN CERTIFICATE-----
     FOO
     -----END CERTIFICATE-----

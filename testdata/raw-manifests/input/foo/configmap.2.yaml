@@ -4,7 +4,7 @@ metadata:
   name: myconfig
 data:
   foo: baz
-  bar: |
+  baz: |
     -----BEGIN CERTIFICATE-----
     FOO
     -----END CERTIFICATE-----
