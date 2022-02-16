@@ -8,3 +8,14 @@ data:
     -----BEGIN CERTIFICATE-----
     FOO
     -----END CERTIFICATE-----
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfig2
+data:
+  foo: bar
+  bar: |
+    -----BEGIN CERTIFICATE-----
+    FOO
+    -----END CERTIFICATE-----
