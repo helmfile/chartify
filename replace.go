@@ -158,9 +158,19 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		results = append(results, f)
 	}
 
-	// Avoids errors like the below due to Chart.yaml containing already dependencies that are already rendered
+	// We need to remove the Chart.yaml's `dependencies` field to
+	// avoid failing due to unnecesarily trying to fetch adhoc chart dependencies we've added just before this function.
+	//
+	// The adhoc chart dependencies should already be rendered, patched, and included in the temporary chart
+	// we've generated so far. So we don't need to tell Helm to fetch chart dependencies again. They are already included.
+	//
+	// This avoids errors like the below due to Chart.yaml containing adhoc dependencies that are already rendered
 	// and included in the files and the templates directories.
 	//   Error: found in Chart.yaml, but missing in charts/ directory: common, kibana
+	//
+	// Note that this is the fix for adhoc chart dependencies.
+	// The standard chart dependencies that are declared in the original Chart.yaml or requirements.yaml,
+	// should have been downloaded by `helm fetch` that run in an even earlier phase of chartify.
 	if r.IsHelm3() {
 		type ChartMeta struct {
 			Dependencies []Dependency           `yaml:"dependencies,omitempty"`

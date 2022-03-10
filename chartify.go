@@ -311,11 +311,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		return "", fmt.Errorf("failed reading adhoc dependencies: %w", err)
 	}
 
+	// We need to modify the original Chart.yaml dependencies or requirements.yaml dependencies to only include
+	// adhoc dependencies, so that it can be rendered and patched, along with the original chart and its subcharts.
+	// Note that we don't need to
 	if len(deps) > 0 {
-		// We need to remove the original Chart.yaml's `dependencies` field to
-		// avoid failing due to unnecesarily trying to fetch chart dependencies.
-		// Chart dependencies should already be rendered, patched, and included in the temporary chart
-		// we've generated so far. So we don't need to tell Helm to fetch chart dependencies, as they are already included.
 		if r.IsHelm3() {
 			type ChartMeta struct {
 				Dependencies []Dependency           `yaml:"dependencies,omitempty"`
@@ -334,7 +333,15 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				}
 			}
 
-			chartMeta.Dependencies = append(chartMeta.Dependencies, deps...)
+			if isLocal {
+				chartMeta.Dependencies = append(chartMeta.Dependencies, deps...)
+			} else {
+				// When it's a remote chart, the helm-fetch preceded this chartification step
+				// should have been already downloaded all the dependencies into the charts/ directory.
+				// In that case, we need to remove the original Chart.yaml's `dependencies` to
+				// avoid failing due to unnecesarily trying to fetch chart dependencies.
+				chartMeta.Dependencies = deps
+			}
 
 			chartYamlContent, err := yaml.Marshal(&chartMeta)
 			if err != nil {
@@ -345,6 +352,16 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 			if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), chartYamlContent, 0644); err != nil {
 				return "", err
+			}
+
+			if !isLocal {
+				reqYaml := filepath.Join(tempDir, "requirements.yaml")
+				if _, err := os.Stat(reqYaml); err == nil {
+					r.Logf("Removing requirements.yaml as unneeded. charts/ should have already been populated by helm-fetch.")
+					if err := os.Remove(reqYaml); err != nil {
+						return "", err
+					}
+				}
 			}
 		} else {
 			var reqs Requirements
@@ -360,11 +377,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				}
 			}
 
-			deps, err := r.ReadAdhocDependencies(u)
-			if err != nil {
-				return "", fmt.Errorf("failed reading adhoc dependencies: %w", err)
-			}
-			reqs.Dependencies = deps
+			reqs.Dependencies = append(reqs.Dependencies, deps...)
 
 			requirementsYamlContent, err := yaml.Marshal(&reqs)
 			if err != nil {
