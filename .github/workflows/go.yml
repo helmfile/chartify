@@ -30,7 +30,7 @@ jobs:
         curl -Ls "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
         mv kustomize ./bin/
 
-        export PATH=$PATH:$(pwd)/bin
+        export PATH=$(pwd -P)/bin:$PATH
 
         helm repo add stable https://charts.helm.sh/stable
 

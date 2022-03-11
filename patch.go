@@ -192,8 +192,8 @@ resources:
 			return len(d), d, nil
 		}
 
-		if i := bytes.Index(d, []byte("---\n")); i >= 0 {
-			return i + 4, d[0:i], nil
+		if i := bytes.Index(d, []byte("\n---\n")); i >= 0 {
+			return i + 5, d[0:i+1], nil
 		}
 
 		// "SplitFunc can return (0, nil, nil) to signal the Scanner to read more data into the slice and try again with a longer slice starting at the same point in the input."
