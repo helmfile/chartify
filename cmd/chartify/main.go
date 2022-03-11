@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/variantdev/chartify"
 	"os"
+
+	"github.com/variantdev/chartify"
 )
 
 type stringSlice []string
@@ -46,7 +47,7 @@ func main() {
 
 	flag.Parse()
 
-	opts.AdhocChartDependencies = deps
+	opts.DeprecatedAdhocChartDependencies = deps
 
 	c := chartify.New(chartify.UseHelm3(true), chartify.HelmBin("helm"))
 
