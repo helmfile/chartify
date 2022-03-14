@@ -40,6 +40,13 @@ type ReplaceWithRenderedOpts struct {
 	// even if you aren't trying to install the generated chart onto the cluster.
 	Validate bool
 
+	// ApiVersions is a string of kubernetes APIVersions and passed to helm template via --api-versions
+	// It is required if your chart contains any template that relies on Capabilities.APIVersion for rendering
+	// resources depending on the API resources and versions available in a target cluster.
+	// Setting this value defines a set of static capabilities and avoids the need for access to a live cluster during
+	// templating in contrast to --validate
+	ApiVersions []string
+
 	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
@@ -64,6 +71,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	if o.Namespace != "" {
 		additionalFlags += createFlagChain("namespace", []string{o.Namespace})
 	}
+	additionalFlags += createFlagChain("api-versions", o.ApiVersions)
 
 	r.Logf("options: %v", o)
 

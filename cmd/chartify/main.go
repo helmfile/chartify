@@ -43,7 +43,7 @@ func main() {
 
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
-	flag.Var(&deps, "d", "one or more \"alias=chart:verion\" to add adhoc chart dependencies")
+	flag.Var(&deps, "d", "one or more \"alias=chart:version\" to add adhoc chart dependencies")
 
 	flag.Parse()
 

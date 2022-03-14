@@ -71,7 +71,7 @@ func TestIntegration(t *testing.T) {
 		},
 		{
 			// Ensure that adhoc chart dependencies work with existing requirements.yaml with different
-			// arrray item indentation
+			// array item indentation
 			release:  "testrelease",
 			chart:    "stable/prometheus-operator",
 			snapshot: "testdata/prometheus-operator-adhoc-dep/output",
