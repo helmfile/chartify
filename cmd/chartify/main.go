@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/variantdev/chartify"
 	"os"
+
+	"github.com/variantdev/chartify"
 )
 
 type stringSlice []string
