@@ -10,8 +10,6 @@ import (
 	"text/template"
 
 	"github.com/otiai10/copy"
-
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -320,89 +318,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	// We need to modify the original Chart.yaml dependencies or requirements.yaml dependencies to only include
 	// adhoc dependencies, so that it can be rendered and patched, along with the original chart and its subcharts.
-	// Note that we don't need to
-	if len(deps) > 0 {
-		if r.IsHelm3() {
-			type ChartMeta struct {
-				Dependencies []Dependency           `yaml:"dependencies,omitempty"`
-				Data         map[string]interface{} `yaml:",inline"`
-			}
-			var chartMeta ChartMeta
-
-			bytes, err := r.ReadFile(chartYamlPath)
-			if os.IsNotExist(err) {
-
-			} else if err != nil {
-				return "", err
-			} else {
-				if err := yaml.Unmarshal(bytes, &chartMeta); err != nil {
-					return "", err
-				}
-			}
-
-			if isLocal {
-				chartMeta.Dependencies = append(chartMeta.Dependencies, deps...)
-			} else {
-				// When it's a remote chart, the helm-fetch preceded this chartification step
-				// should have been already downloaded all the dependencies into the charts/ directory.
-				// In that case, we need to remove the original Chart.yaml's `dependencies` to
-				// avoid failing due to unnecesarily trying to fetch chart dependencies.
-				chartMeta.Dependencies = deps
-			}
-
-			chartYamlContent, err := yaml.Marshal(&chartMeta)
-			if err != nil {
-				return "", fmt.Errorf("marshalling-back %s's Chart.yaml: %w", release, err)
-			}
-
-			r.Logf("Removing the dependencies field from the original Chart.yaml.")
-
-			if err := r.WriteFile(filepath.Join(tempDir, "Chart.yaml"), chartYamlContent, 0644); err != nil {
-				return "", err
-			}
-
-			if !isLocal {
-				reqYaml := filepath.Join(tempDir, "requirements.yaml")
-				if _, err := os.Stat(reqYaml); err == nil {
-					r.Logf("Removing requirements.yaml as unneeded. charts/ should have already been populated by helm-fetch.")
-					if err := os.Remove(reqYaml); err != nil {
-						return "", err
-					}
-				}
-			}
-		} else {
-			var reqs Requirements
-
-			bytes, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
-			if os.IsNotExist(err) {
-
-			} else if err != nil {
-				return "", err
-			} else {
-				if err := yaml.Unmarshal(bytes, &reqs); err != nil {
-					return "", err
-				}
-			}
-
-			reqs.Dependencies = append(reqs.Dependencies, deps...)
-
-			requirementsYamlContent, err := yaml.Marshal(&reqs)
-			if err != nil {
-				return "", fmt.Errorf("marshalling %s's requirements as YAML: %w", release, err)
-			}
-
-			if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
-				return "", err
-			}
-
-			{
-				debugOut, err := r.ReadFile(filepath.Join(tempDir, "requirements.yaml"))
-				if err != nil {
-					return "", err
-				}
-				r.Logf("using requirements.yaml:\n%s", debugOut)
-			}
-		}
+	// Note that we need to replace whole the deps when it's a remote chart,
+	// and add deps when it's a local chart. That's why we specify `!isLocal` as the first arugment(replace).
+	all, err := r.UpdateRequirements(!isLocal, chartYamlPath, tempDir, deps)
+	if err != nil {
+		return "", fmt.Errorf("release %s: updating requirements: %w", release, err)
 	}
 
 	var generatedManifestFiles []string
@@ -452,6 +372,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		ApiVersions:  u.ApiVersions,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
+	}
+
+	if _, err := r.UpdateRequirements(true, chartYamlPath, tempDir, all); err != nil {
+		return "", fmt.Errorf("release %s: replacing requirements: %w", release, err)
 	}
 
 	generated, err := r.ReplaceWithRendered(release, chartName, tempDir, templateOptions)
