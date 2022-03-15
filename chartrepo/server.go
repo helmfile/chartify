@@ -28,18 +28,32 @@ type Server struct {
 	Host string
 }
 
-func (s *Server) Run(ctx context.Context, chartsDir string) error {
+func (s *Server) getPort() int {
 	port := s.Port
 	if port == 0 {
 		port = 18080
 	}
+	return port
+}
 
+func (s *Server) getHostport() string {
+	port := s.getPort()
 	hostport := s.Host
 	if hostport == "" {
 		hostport = fmt.Sprintf("localhost:%d", port)
 	}
+	return hostport
+}
 
+func (s *Server) ServerURL() string {
+	hostport := s.getHostport()
 	serverURL := fmt.Sprintf("http://%s/", hostport)
+	return serverURL
+}
+
+func (s *Server) Run(ctx context.Context, chartsDir string) error {
+	port := s.getPort()
+	serverURL := s.ServerURL()
 
 	worktree, err := os.MkdirTemp(os.TempDir(), "chartrepo")
 	if err != nil {
@@ -119,7 +133,6 @@ func (s *Server) Run(ctx context.Context, chartsDir string) error {
 				return err
 			}
 			update = true
-			break
 		}
 	}
 
@@ -181,13 +194,17 @@ func (s *Server) Run(ctx context.Context, chartsDir string) error {
 		Handler: &serveMux,
 	}
 
+	go func() {
+		<-ctx.Done()
+
+		_ = server.Close()
+	}()
+
 	if err := server.ListenAndServe(); err != nil {
 		return fmt.Errorf("starting server: %w", err)
 	}
 
-	<-ctx.Done()
-
-	return server.Close()
+	return nil
 }
 
 func splitPackageNameAndVersion(pkg string) []string {
