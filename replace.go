@@ -245,7 +245,35 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		}
 	}
 
+	// We need to remove dangling Chart.lock and requirements.lock too, as the corresponding dependencies
+	// are already deleted out fro Chart.yaml/requirements.yaml above.
+	// Otherwise, you may end up with issues like:
+	// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
+
+	reqLock := filepath.Join(chartPath, "requirements.lock")
+	chartLock := filepath.Join(chartPath, "Chart.lock")
+
+	if err := removeFileIfExists(reqLock); err != nil {
+		r.Logf("Error removing %s: %v", reqLock, err)
+	}
+
+	if err := removeFileIfExists(chartLock); err != nil {
+		r.Logf("Error removing %s: %v", chartLock, err)
+	}
+
 	return results, nil
+}
+
+func removeFileIfExists(f string) error {
+	if _, err := os.Stat(f); err != nil {
+		return err
+	}
+
+	if err := os.Remove(f); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *Runner) executeHelmTemplate(release, chart string) error {
