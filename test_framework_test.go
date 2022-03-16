@@ -15,6 +15,40 @@ import (
 )
 
 func TestFramework(t *testing.T) {
+	repo := "myrepo"
+
+	tc := integrationTestCase{
+		description: "adhoc dependency condition",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	}
+
+	runTest(t, tc, repo)
+}
+
+func runTest(t *testing.T, tc integrationTestCase, repo string) {
+	t.Helper()
+
+	t.Run(tc.description, func(t *testing.T) {
+		doTest(t, tc, repo)
+	})
+}
+
+func doTest(t *testing.T, tc integrationTestCase, repo string) {
+	t.Helper()
+
 	srvErr := make(chan error)
 	port := 18080
 	srv := &chartrepo.Server{
@@ -63,26 +97,7 @@ func TestFramework(t *testing.T) {
 		}
 	})
 
-	repo := "myrepo"
-
 	r := New(UseHelm3(true), HelmBin("helm"))
-	tc := integrationTestCase{
-		description: "adhoc dependency condition",
-		release:     "myapp",
-		chart:       repo + "/db",
-		opts: ChartifyOpts{
-			AdhocChartDependencies: []ChartDependency{
-				{
-					Alias:   "log",
-					Chart:   repo + "/log",
-					Version: "0.1.0",
-				},
-			},
-			SetFlags: []string{
-				"--set", "log.enabled=true",
-			},
-		},
-	}
 
 	helmRepoAdd := exec.CommandContext(ctx, "helm", "repo", "add", repo, srv.ServerURL())
 	helmRepoAddOut, err := helmRepoAdd.CombinedOutput()
