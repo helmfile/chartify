@@ -38,17 +38,20 @@ type check struct {
 	f func(*testing.T, map[string]interface{})
 }
 
+type integrationTestCase struct {
+	description string
+	release     string
+	chart       string
+	snapshot    string
+	fileList    string
+	checks      []check
+	opts        ChartifyOpts
+}
+
 func TestIntegration(t *testing.T) {
 	r := New(UseHelm3(true), HelmBin("helm"))
 
-	testcases := []struct {
-		release  string
-		chart    string
-		snapshot string
-		fileList string
-		checks   []check
-		opts     ChartifyOpts
-	}{
+	testcases := []integrationTestCase{
 		{
 			release:  "testrelease",
 			chart:    "testdata/kustomize/input",
