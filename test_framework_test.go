@@ -17,7 +17,17 @@ import (
 func TestFramework(t *testing.T) {
 	repo := "myrepo"
 
-	tc := integrationTestCase{
+	tempDir := filepath.Join(t.TempDir(), "helm")
+	helmCacheHome := filepath.Join(tempDir, "cache")
+	helmConfigHone := filepath.Join(tempDir, "config")
+
+	os.Setenv("HELM_CACHE_HOME", helmCacheHome)
+	os.Setenv("HELM_CONFIG_HOME", helmConfigHone)
+
+	startServer(t, repo)
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition$ ./
+	runTest(t, integrationTestCase{
 		description: "adhoc dependency condition",
 		release:     "myapp",
 		chart:       repo + "/db",
@@ -33,22 +43,29 @@ func TestFramework(t *testing.T) {
 				"--set", "log.enabled=true",
 			},
 		},
-	}
+	})
 
-	runTest(t, tc, repo)
-}
-
-func runTest(t *testing.T, tc integrationTestCase, repo string) {
-	t.Helper()
-
-	t.Run(tc.description, func(t *testing.T) {
-		doTest(t, tc, repo)
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/local_chart_with_adhoc_dependency$ ./
+	runTest(t, integrationTestCase{
+		description: "local chart with adhoc dependency",
+		release:     "myapp",
+		chart:       "./testdata/charts/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
 	})
 }
 
-func doTest(t *testing.T, tc integrationTestCase, repo string) {
-	t.Helper()
-
+func startServer(t *testing.T, repo string) {
 	srvErr := make(chan error)
 	port := 18080
 	srv := &chartrepo.Server{
@@ -85,6 +102,8 @@ func doTest(t *testing.T, tc integrationTestCase, repo string) {
 	}
 
 	t.Cleanup(func() {
+		t.Logf("Stopping chartrepo server")
+
 		cancel()
 
 		select {
@@ -97,12 +116,28 @@ func doTest(t *testing.T, tc integrationTestCase, repo string) {
 		}
 	})
 
-	r := New(UseHelm3(true), HelmBin("helm"))
-
 	helmRepoAdd := exec.CommandContext(ctx, "helm", "repo", "add", repo, srv.ServerURL())
 	helmRepoAddOut, err := helmRepoAdd.CombinedOutput()
 	t.Logf("helm repo add: %s", string(helmRepoAddOut))
 	require.NoError(t, err)
+
+	t.Logf("Started chartrepo server")
+}
+
+func runTest(t *testing.T, tc integrationTestCase) {
+	t.Helper()
+
+	t.Run(tc.description, func(t *testing.T) {
+		doTest(t, tc)
+	})
+}
+
+func doTest(t *testing.T, tc integrationTestCase) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	r := New(UseHelm3(true), HelmBin("helm"))
 
 	tmpDir, err := r.Chartify(tc.release, tc.chart, WithChartifyOpts(&tc.opts))
 	t.Cleanup(func() {
@@ -111,6 +146,18 @@ func doTest(t *testing.T, tc integrationTestCase, repo string) {
 		}
 	})
 	require.NoError(t, err)
+
+	if info, _ := os.Stat(tc.chart); info != nil {
+		// Our contract (mainly for Helmfile) is that any local chart can pass
+		// subsequent `helm dep build` on it after chartification
+		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
+		cmd := exec.CommandContext(ctx, "helm", "dependency", "build", tmpDir)
+		helmDepBuildOut, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("%s", string(helmDepBuildOut))
+		}
+		require.NoError(t, err)
+	}
 
 	cmd := exec.CommandContext(ctx, "helm", "template", tmpDir)
 	out, err := cmd.CombinedOutput()

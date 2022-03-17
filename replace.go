@@ -246,7 +246,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	}
 
 	// We need to remove dangling Chart.lock and requirements.lock too, as the corresponding dependencies
-	// are already deleted out fro Chart.yaml/requirements.yaml above.
+	// are already deleted out of Chart.yaml/requirements.yaml as above.
 	// Otherwise, you may end up with issues like:
 	// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
 
