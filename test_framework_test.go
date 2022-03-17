@@ -86,6 +86,16 @@ func TestFramework(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/force_namespace$ ./
+	runTest(t, integrationTestCase{
+		description: "force namespace",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			OverrideNamespace: "force",
+		},
+	})
+
 	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/local_chart_with_adhoc_dependency$ ./
 	runTest(t, integrationTestCase{
 		description: "local chart with adhoc dependency",
