@@ -51,6 +51,41 @@ func TestFramework(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition_disabled$ ./
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency condition disabled",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=false",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition_default$ ./
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency condition default",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+		},
+	})
+
 	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/local_chart_with_adhoc_dependency$ ./
 	runTest(t, integrationTestCase{
 		description: "local chart with adhoc dependency",
