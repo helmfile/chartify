@@ -14,7 +14,13 @@ import (
 	"github.com/variantdev/chartify/chartrepo"
 )
 
+var helm string = "helm"
+
 func TestFramework(t *testing.T) {
+	if h := os.Getenv("HELM_BIN"); h != "" {
+		helm = h
+	}
+
 	repo := "myrepo"
 
 	tempDir := filepath.Join(t.TempDir(), "helm")
@@ -116,9 +122,9 @@ func startServer(t *testing.T, repo string) {
 		}
 	})
 
-	helmRepoAdd := exec.CommandContext(ctx, "helm", "repo", "add", repo, srv.ServerURL())
+	helmRepoAdd := exec.CommandContext(ctx, helm, "repo", "add", repo, srv.ServerURL())
 	helmRepoAddOut, err := helmRepoAdd.CombinedOutput()
-	t.Logf("helm repo add: %s", string(helmRepoAddOut))
+	t.Logf("%s repo add: %s", helm, string(helmRepoAddOut))
 	require.NoError(t, err)
 
 	t.Logf("Started chartrepo server")
@@ -137,7 +143,7 @@ func doTest(t *testing.T, tc integrationTestCase) {
 
 	ctx := context.Background()
 
-	r := New(UseHelm3(true), HelmBin("helm"))
+	r := New(UseHelm3(true), HelmBin(helm))
 
 	tmpDir, err := r.Chartify(tc.release, tc.chart, WithChartifyOpts(&tc.opts))
 	t.Cleanup(func() {
@@ -151,15 +157,15 @@ func doTest(t *testing.T, tc integrationTestCase) {
 		// Our contract (mainly for Helmfile) is that any local chart can pass
 		// subsequent `helm dep build` on it after chartification
 		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
-		cmd := exec.CommandContext(ctx, "helm", "dependency", "build", tmpDir)
+		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
 		helmDepBuildOut, err := cmd.CombinedOutput()
 		if err != nil {
-			t.Logf("%s", string(helmDepBuildOut))
+			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
 		}
 		require.NoError(t, err)
 	}
 
-	cmd := exec.CommandContext(ctx, "helm", "template", tmpDir)
+	cmd := exec.CommandContext(ctx, helm, "template", tmpDir)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 	got := string(out)
