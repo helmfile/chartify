@@ -1,8 +1,0 @@
-# Source: templates/one.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: config4
-  namespace: void
-stringData:
-  source: config4

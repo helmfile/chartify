@@ -1,0 +1,87 @@
+---
+# Source: kube_manifest/templates/patched_resources.yaml
+apiVersion: v1
+data:
+  bar: |
+    -----BEGIN CERTIFICATE-----
+    FOO
+    -----END CERTIFICATE-----
+  baz: BAZ
+  foo: bar
+kind: ConfigMap
+metadata:
+  name: myconfig1
+---
+# Source: kube_manifest/templates/patched_resources.yaml
+apiVersion: v1
+data:
+  bar: |
+    -----BEGIN CERTIFICATE-----
+    FOO
+    -----END CERTIFICATE-----
+  foo: bar
+kind: ConfigMap
+metadata:
+  name: myconfig2
+---
+# Source: kube_manifest/templates/patched_resources.yaml
+apiVersion: v1
+data:
+  baz: |
+    -----BEGIN CERTIFICATE-----
+    FOO
+    -----END CERTIFICATE-----
+  foo: baz
+kind: ConfigMap
+metadata:
+  name: myconfig3
+---
+# Source: kube_manifest/templates/patched_resources.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: log
+    app.kubernetes.io/version: 1.16.0
+    helm.sh/chart: log-0.1.0
+  name: myapp-log
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: myapp
+      app.kubernetes.io/name: log
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: myapp
+        app.kubernetes.io/name: log
+    spec:
+      containers:
+      - image: nginx:1.16.0
+        name: log
+---
+# Source: kube_manifest/templates/patched_resources.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    helm.sh/hook: test
+  labels:
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: log
+    app.kubernetes.io/version: 1.16.0
+    helm.sh/chart: log-0.1.0
+  name: myapp-log-test-connection
+spec:
+  containers:
+  - args:
+    - myapp-log:80
+    command:
+    - wget
+    image: busybox
+    name: wget
+  restartPolicy: Never

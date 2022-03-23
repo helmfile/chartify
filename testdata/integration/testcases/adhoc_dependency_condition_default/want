@@ -1,0 +1,100 @@
+---
+# Source: db/templates/charts/log/templates/deployment.yaml
+# Source: db/charts/log/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-log
+  labels:
+    helm.sh/chart: log-0.1.0
+    app.kubernetes.io/name: log
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: log
+      app.kubernetes.io/instance: myapp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: log
+        app.kubernetes.io/instance: myapp
+    spec:
+      containers:
+        - name: log
+          image: "nginx:1.16.0"
+---
+# Source: db/templates/deployment.yaml
+# Source: db/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-db
+  labels:
+    helm.sh/chart: db-0.1.0
+    app.kubernetes.io/name: db
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: db
+      app.kubernetes.io/instance: myapp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: db
+        app.kubernetes.io/instance: myapp
+    spec:
+      containers:
+        - name: db
+          image: "nginx:1.16.0"
+---
+# Source: db/templates/charts/log/templates/tests/test-connection.yaml
+# Source: db/charts/log/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "myapp-log-test-connection"
+  labels:
+    helm.sh/chart: log-0.1.0
+    app.kubernetes.io/name: log
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['myapp-log:80']
+  restartPolicy: Never
+---
+# Source: db/templates/tests/test-connection.yaml
+# Source: db/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "myapp-db-test-connection"
+  labels:
+    helm.sh/chart: db-0.1.0
+    app.kubernetes.io/name: db
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['myapp-db:80']
+  restartPolicy: Never
