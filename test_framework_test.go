@@ -96,6 +96,10 @@ func TestFramework(t *testing.T) {
 		},
 	})
 
+	//
+	// Local Chart
+	//
+
 	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/local_chart_with_adhoc_dependency$ ./
 	runTest(t, integrationTestCase{
 		description: "local chart with adhoc dependency",
@@ -114,6 +118,52 @@ func TestFramework(t *testing.T) {
 			},
 		},
 	})
+
+	//
+	// Kubernets Manifests
+	//
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/kube_manifest_with_adhoc_dep$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_with_adhoc_dep",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/kube_manifest_with_patch$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_with_patch",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			StrategicMergePatches: []string{
+				"./testdata/kube_manifest_patch/cm.strategic.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
 }
 
 func startServer(t *testing.T, repo string) {
