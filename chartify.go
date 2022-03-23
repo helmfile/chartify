@@ -96,6 +96,14 @@ type ChartifyOpts struct {
 	// even if you aren't trying to install the generated chart onto the cluster.
 	Validate bool
 
+	// KubeVersion specifies the Kubernetes version used for Capabilities.KubeVersion
+	// when running `helm template` to produce the temporary chart to apply various customizations.
+	// If the upstream command that calls chartify was going to pass `kube-version` while rendering the original chart,
+	// you must also pass the same value to this field.
+	// Otherwise the temporary chart rendered by chartify lacks `kube-version` at helm-template time
+	// and it my produce output unexpected to you.
+	KubeVersion string
+
 	// ApiVersions is a string of kubernetes APIVersions and passed to helm template via --api-versions
 	// It is required if your chart contains any template that relies on Capabilities.APIVersion for rendering
 	// resources depending on the API resources and versions available in a target cluster.
@@ -369,6 +377,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		ChartVersion: u.ChartVersion,
 		IncludeCRDs:  u.IncludeCRDs,
 		Validate:     u.Validate,
+		KubeVersion:  u.KubeVersion,
 		ApiVersions:  u.ApiVersions,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,

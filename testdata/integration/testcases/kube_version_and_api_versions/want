@@ -1,0 +1,59 @@
+---
+# Source: vers/templates/configmap.yaml
+# Source: vers/templates/configmap.yaml
+apiVersion: core/v1
+kind: ConfigMap
+metadata:
+  name: vers1-vers
+spec:
+  kubeVersion: v1.23.0
+  apiVersion0: v1
+  apiVersion1: admissionregistration.k8s.io/v1
+  apiVersion2: admissionregistration.k8s.io/v1beta1
+  apiVersion3: internal.apiserver.k8s.io/v1alpha1
+  apiVersion4: apps/v1
+  apiVersion5: apps/v1beta1
+  apiVersion6: apps/v1beta2
+  apiVersion7: authentication.k8s.io/v1
+  apiVersion8: authentication.k8s.io/v1beta1
+  apiVersion9: authorization.k8s.io/v1
+  apiVersion10: authorization.k8s.io/v1beta1
+  apiVersion11: autoscaling/v1
+  apiVersion12: autoscaling/v2
+  apiVersion13: autoscaling/v2beta1
+  apiVersion14: autoscaling/v2beta2
+  apiVersion15: batch/v1
+  apiVersion16: batch/v1beta1
+  apiVersion17: certificates.k8s.io/v1
+  apiVersion18: certificates.k8s.io/v1beta1
+  apiVersion19: coordination.k8s.io/v1beta1
+  apiVersion20: coordination.k8s.io/v1
+  apiVersion21: discovery.k8s.io/v1
+  apiVersion22: discovery.k8s.io/v1beta1
+  apiVersion23: events.k8s.io/v1
+  apiVersion24: events.k8s.io/v1beta1
+  apiVersion25: extensions/v1beta1
+  apiVersion26: flowcontrol.apiserver.k8s.io/v1alpha1
+  apiVersion27: flowcontrol.apiserver.k8s.io/v1beta1
+  apiVersion28: flowcontrol.apiserver.k8s.io/v1beta2
+  apiVersion29: networking.k8s.io/v1
+  apiVersion30: networking.k8s.io/v1beta1
+  apiVersion31: node.k8s.io/v1
+  apiVersion32: node.k8s.io/v1alpha1
+  apiVersion33: node.k8s.io/v1beta1
+  apiVersion34: policy/v1
+  apiVersion35: policy/v1beta1
+  apiVersion36: rbac.authorization.k8s.io/v1
+  apiVersion37: rbac.authorization.k8s.io/v1beta1
+  apiVersion38: rbac.authorization.k8s.io/v1alpha1
+  apiVersion39: scheduling.k8s.io/v1alpha1
+  apiVersion40: scheduling.k8s.io/v1beta1
+  apiVersion41: scheduling.k8s.io/v1
+  apiVersion42: storage.k8s.io/v1beta1
+  apiVersion43: storage.k8s.io/v1
+  apiVersion44: storage.k8s.io/v1alpha1
+  apiVersion45: apiextensions.k8s.io/v1beta1
+  apiVersion46: apiextensions.k8s.io/v1
+  apiVersion47: foo/v1alpha1
+  apiVersion48: bar/v1beta1
+  apiVersion49: baz/v1

@@ -96,6 +96,21 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/kube_version_and_api_versions$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_version_and_api_versions",
+		release:     "vers1",
+		chart:       repo + "/vers",
+		opts: ChartifyOpts{
+			KubeVersion: "1.23.0",
+			ApiVersions: []string{
+				"foo/v1alpha1",
+				"bar/v1beta1",
+				"baz/v1",
+			},
+		},
+	})
+
 	//
 	// Local Chart
 	//
@@ -163,7 +178,6 @@ func TestIntegration(t *testing.T) {
 			},
 		},
 	})
-
 }
 
 func startServer(t *testing.T, repo string) {
