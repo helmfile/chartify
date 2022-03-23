@@ -1,1 +1,0 @@
-{{ .Files.Get "files/templates/poddisruptionbudget.yaml" }}

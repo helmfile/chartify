@@ -1,325 +1,292 @@
 package chartify
 
 import (
-	"fmt"
-	"io"
-	"io/ioutil"
+	"context"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"gopkg.in/yaml.v3"
+	"github.com/stretchr/testify/require"
+	"github.com/variantdev/chartify/chartrepo"
 )
 
-func errWithFiles(err error, tmpDir string) error {
-	files := []string{}
+var helm string = "helm"
 
-	globErr := filepath.Walk(tmpDir, func(path string, f os.FileInfo, err error) error {
-		files = append(files, path)
-
-		return nil
-	})
-	if globErr != nil {
-		return fmt.Errorf("augumenting original error %v with files under %q: %v", err, tmpDir, globErr)
+func TestIntegration(t *testing.T) {
+	if h := os.Getenv("HELM_BIN"); h != "" {
+		helm = h
 	}
 
-	return fmt.Errorf("%v\n\nListing files under %s:\n%s", err, tmpDir, strings.Join(files, "\n"))
+	repo := "myrepo"
+
+	tempDir := filepath.Join(t.TempDir(), "helm")
+	helmCacheHome := filepath.Join(tempDir, "cache")
+	helmConfigHone := filepath.Join(tempDir, "config")
+
+	os.Setenv("HELM_CACHE_HOME", helmCacheHome)
+	os.Setenv("HELM_CONFIG_HOME", helmConfigHone)
+
+	startServer(t, repo)
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition$ ./
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency condition",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition_disabled$ ./
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency condition disabled",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=false",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/adhoc_dependency_condition_default$ ./
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency condition default",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/force_namespace$ ./
+	runTest(t, integrationTestCase{
+		description: "force namespace",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			OverrideNamespace: "force",
+		},
+	})
+
+	//
+	// Local Chart
+	//
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/local_chart_with_adhoc_dependency$ ./
+	runTest(t, integrationTestCase{
+		description: "local chart with adhoc dependency",
+		release:     "myapp",
+		chart:       "./testdata/charts/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	//
+	// Kubernets Manifests
+	//
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/kube_manifest_with_adhoc_dep$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_with_adhoc_dep",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework/kube_manifest_with_patch$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_with_patch",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			StrategicMergePatches: []string{
+				"./testdata/kube_manifest_patch/cm.strategic.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
 }
 
-type check struct {
-	kind      string
-	name      string
-	namespace string
-	cond      string
+func startServer(t *testing.T, repo string) {
+	srvErr := make(chan error)
+	port := 18080
+	srv := &chartrepo.Server{
+		Port: port,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		srvErr <- srv.Run(ctx, "testdata/charts")
+	}()
 
-	f func(*testing.T, map[string]interface{})
+	srvStart := make(chan struct{})
+	go func() {
+		for _ = range time.Tick(1 * time.Second) {
+			res, err := http.Get(srv.ServerURL() + "index.yaml")
+			if err == nil && res.StatusCode == http.StatusOK {
+				break
+			}
+
+			if res != nil {
+				t.Logf("Waiting for chartrepo server to start: code=%d", res.StatusCode)
+			} else {
+				t.Logf("Waiting for chartrepo server to start: error=%v", err)
+			}
+		}
+
+		srvStart <- struct{}{}
+	}()
+
+	select {
+	case <-srvStart:
+		t.Logf("chartrepo server started")
+	case <-time.After(10 * time.Second):
+		t.Fatalf("unable to restart chartrepo server within 10 seconds")
+	}
+
+	t.Cleanup(func() {
+		t.Logf("Stopping chartrepo server")
+
+		cancel()
+
+		select {
+		case err := <-srvErr:
+			if err != nil {
+				t.Log("cleanup: stopping cahrtrepo server: " + err.Error())
+			}
+		case <-time.After(3 * time.Second):
+			t.Log("cleanup: unable to stop chartrepo server within 3 seconds")
+		}
+	})
+
+	helmRepoAdd := exec.CommandContext(ctx, helm, "repo", "add", repo, srv.ServerURL())
+	helmRepoAddOut, err := helmRepoAdd.CombinedOutput()
+	t.Logf("%s repo add: %s", helm, string(helmRepoAddOut))
+	require.NoError(t, err)
+
+	t.Logf("Started chartrepo server")
+}
+
+func runTest(t *testing.T, tc integrationTestCase) {
+	t.Helper()
+
+	t.Run(tc.description, func(t *testing.T) {
+		doTest(t, tc)
+	})
+}
+
+func doTest(t *testing.T, tc integrationTestCase) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	r := New(UseHelm3(true), HelmBin(helm))
+
+	tmpDir, err := r.Chartify(tc.release, tc.chart, WithChartifyOpts(&tc.opts))
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			panic("unable to remove chartify tmpDir: " + err.Error())
+		}
+	})
+	require.NoError(t, err)
+
+	if info, _ := os.Stat(tc.chart); info != nil {
+		// Our contract (mainly for Helmfile) is that any local chart can pass
+		// subsequent `helm dep build` on it after chartification
+		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
+		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
+		helmDepBuildOut, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
+		}
+		require.NoError(t, err)
+	}
+
+	cmd := exec.CommandContext(ctx, helm, "template", tmpDir)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+	got := string(out)
+
+	snapshotFile := filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
+
+	// You can update the snapshot by running e.g.:
+	//   SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework$ ./
+	if os.Getenv("SAVE_SNAPSHOT") != "" {
+		testcaseDir := filepath.Dir(snapshotFile)
+		err = os.MkdirAll(testcaseDir, 0755)
+		require.NoError(t, err, "creating testcase dir %s", testcaseDir)
+		err = os.WriteFile(snapshotFile, out, 0644)
+		require.NoError(t, err, "saving snapshot to %s", snapshotFile)
+	}
+
+	snapshot, err := os.ReadFile(snapshotFile)
+	require.NoError(t, err, "reading snapshot %s", snapshotFile)
+
+	want := string(snapshot)
+	require.Equal(t, want, got)
 }
 
 type integrationTestCase struct {
 	description string
 	release     string
 	chart       string
-	snapshot    string
-	fileList    string
-	checks      []check
 	opts        ChartifyOpts
-}
-
-func TestIntegration(t *testing.T) {
-	r := New(UseHelm3(true), HelmBin("helm"))
-
-	testcases := []integrationTestCase{
-		{
-			release:  "testrelease",
-			chart:    "testdata/kustomize/input",
-			snapshot: "testdata/kustomize/output",
-			fileList: "testdata/kustomize/filelist.yaml",
-			opts: ChartifyOpts{
-				Debug:                       false,
-				ValuesFiles:                 nil,
-				SetValues:                   nil,
-				Namespace:                   "",
-				ChartVersion:                "",
-				TillerNamespace:             "",
-				EnableKustomizeAlphaPlugins: false,
-				Injectors:                   nil,
-				Injects:                     nil,
-				AdhocChartDependencies:      nil,
-				JsonPatches:                 nil,
-				StrategicMergePatches:       nil,
-			},
-		},
-		{
-			// Ensure that adhoc chart dependencies work with existing requirements.yaml with different
-			// array item indentation
-			release:  "testrelease",
-			chart:    "stable/prometheus-operator",
-			snapshot: "testdata/prometheus-operator-adhoc-dep/output",
-			fileList: "testdata/prometheus-operator-adhoc-dep/filelist.yaml",
-			opts: ChartifyOpts{
-				ChartVersion:           "9.2.2",
-				AdhocChartDependencies: []ChartDependency{{Alias: "my", Chart: "stable/mysql", Version: "1.6.6"}},
-			},
-		},
-		{
-			release:  "testrelease",
-			chart:    "stable/prometheus-operator",
-			snapshot: "testdata/prometheus-operator-adhoc-dep-with-strategicpatch/output",
-			fileList: "testdata/prometheus-operator-adhoc-dep-with-strategicpatch/filelist.yaml",
-			checks: []check{
-				{
-					kind:      "Deployment",
-					name:      "testrelease-my",
-					namespace: "default",
-					cond:      "spec.strategy.type must be RollingUpdate",
-					f: func(t *testing.T, m map[string]interface{}) {
-						spec, ok := m["spec"].(map[string]interface{})
-						if ok {
-							strategy, ok := spec["strategy"].(map[string]interface{})
-							if ok {
-								tpe, ok := strategy["type"]
-								if ok && tpe == "RollingUpdate" {
-									return
-								}
-							}
-						}
-						t.Errorf("unexpected spec.strategy.type: %+v", m)
-					},
-				},
-			},
-			opts: ChartifyOpts{
-				ValuesFiles:            []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/values.yaml"},
-				ChartVersion:           "9.2.1",
-				AdhocChartDependencies: []ChartDependency{{Alias: "my", Chart: "stable/mysql", Version: "1.6.6"}},
-				StrategicMergePatches:  []string{"testdata/prometheus-operator-adhoc-dep-with-strategicpatch/strategicpatch.yaml"},
-			},
-		},
-		{
-			release:  "testrelease",
-			chart:    "stable/envoy",
-			snapshot: "testdata/envoy-with-ns/output",
-			fileList: "testdata/envoy-with-ns/filelist.yaml",
-			opts: ChartifyOpts{
-				OverrideNamespace: "foo",
-				ChartVersion:      "1.9.1",
-				ValuesFiles:       []string{"testdata/envoy-with-ns/values.yaml"},
-			},
-		},
-		{
-			release:  "testrelease",
-			chart:    "testdata/raw-manifests/input",
-			snapshot: "testdata/raw-manifests/output",
-			fileList: "testdata/raw-manifests/filelist.yaml",
-			opts: ChartifyOpts{
-				OverrideNamespace: "foo",
-				ChartVersion:      "1.9.1",
-				ValuesFiles:       []string{"testdata/envoy-with-ns/values.yaml"},
-			},
-		},
-		{
-			release:  "testrelease",
-			chart:    "testdata/raw-manifests/input",
-			snapshot: "testdata/raw-manifests/output",
-			fileList: "testdata/raw-manifests/filelist.yaml",
-			opts: ChartifyOpts{
-				Namespace:    "foo",
-				ChartVersion: "1.9.1",
-				ValuesFiles:  []string{"testdata/envoy-with-ns/values.yaml"},
-			},
-		},
-	}
-
-	for i, tc := range testcases {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			tmpDir, err := r.Chartify(tc.release, tc.chart, WithChartifyOpts(&tc.opts))
-
-			if tmpDir != "" && strings.HasPrefix(tmpDir, os.TempDir()) {
-				if os.Getenv("RETAIN_TEMP_DIR") != "" {
-					t.Logf("Retaining %q", tmpDir)
-				} else {
-					defer os.RemoveAll(tmpDir)
-				}
-			}
-
-			if err != nil {
-				t.Fatalf("Integration test failed: %v\n\nTo debug, re-run with RETAIN_TEMP_DIR=1", err)
-			}
-
-			if err := filepath.Walk(tc.snapshot, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-
-					return err
-				}
-
-				if info.IsDir() {
-					return nil
-				}
-
-				rel, err := filepath.Rel(tc.snapshot, path)
-				if err != nil {
-					return fmt.Errorf("calculating relative path to %s from %s: %v", path, tc.snapshot, err)
-				}
-
-				want, err := ioutil.ReadFile(path)
-				if err != nil {
-					return fmt.Errorf("reading wanted file %s: %v", path, err)
-				}
-
-				gotFile := filepath.Join(tmpDir, rel)
-				got, err := ioutil.ReadFile(gotFile)
-				if err != nil {
-					if os.IsNotExist(err) {
-						filesDir := filepath.Dir(gotFile)
-						t.Errorf("expected file %s not found: %v", gotFile, errWithFiles(err, filesDir))
-						return nil
-					}
-					return fmt.Errorf("reading expected file %s: %v", gotFile, err)
-				}
-
-				if diff := cmp.Diff(string(want), string(got)); diff != "" {
-					t.Errorf("unexpected diff on %s:\n%s", path, diff)
-
-					return nil
-				}
-
-				return nil
-			}); err != nil {
-				t.Fatalf("unexpected error while comparing result to snapshot: %v", err)
-			}
-
-			if tc.fileList != "" {
-				bs, err := ioutil.ReadFile(tc.fileList)
-				if err != nil {
-					t.Fatalf("%v", err)
-				}
-
-				var fileList []string
-
-				if err := yaml.Unmarshal(bs, &fileList); err != nil {
-					t.Fatalf("%v", err)
-				}
-
-				var paths []string
-				if err := filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-					rel, err := filepath.Rel(tmpDir, path)
-					if err != nil {
-						return err
-					}
-
-					paths = append(paths, rel)
-
-					if info.IsDir() || filepath.Ext(path) != ".yaml" {
-						return nil
-					}
-
-					//
-					// Check partial content
-					//
-
-					passed := map[int]bool{}
-
-					m := map[string]interface{}{}
-					bs, err := ioutil.ReadFile(path)
-					if err != nil {
-						t.Fatalf("%v", err)
-					}
-
-					if strings.HasPrefix(string(bs), "{{ .Files.Get \"") {
-						// Looks like chartify-generated helm template
-						return nil
-					}
-
-					f, err := os.Open(path)
-					if err != nil {
-						t.Fatalf("opening %s: %v", path, err)
-					}
-
-					dec := yaml.NewDecoder(f)
-
-					for {
-						err := dec.Decode(&m)
-						if err != nil {
-							if err == io.EOF {
-								break
-							}
-							t.Fatalf("%v:\nYAML:\n%s", err, string(bs))
-						}
-
-						kind := m["kind"]
-						metadata, ok := m["metadata"].(map[string]interface{})
-						if !ok {
-							// Looks like a non-K8s YAML (like Chart.yaml and values.yaml)
-							continue
-						}
-						name := metadata["name"].(string)
-						namespace, ok := metadata["namespace"].(string)
-						if !ok {
-							namespace = ""
-						}
-						for i, check := range tc.checks {
-							if kind == check.kind && name == check.name && namespace == check.namespace {
-								check.f(t, m)
-								passed[i] = true
-							}
-						}
-					}
-
-					var checks []check
-					for i, check := range tc.checks {
-						if !passed[i] {
-							checks = append(checks, check)
-						}
-					}
-					tc.checks = checks
-
-					return nil
-				}); err != nil {
-					t.Fatalf("%v", err)
-				}
-
-				if len(tc.checks) > 0 {
-					var lines []string
-					for _, c := range tc.checks {
-						lines = append(lines, fmt.Sprintf("%s/%s (%s) %s", c.namespace, c.name, c.kind, c.cond))
-					}
-					msg := strings.Join(lines, "\n")
-					t.Errorf("%d checks are remaining:\n%s", len(tc.checks), msg)
-				}
-
-				sort.Strings(paths)
-
-				if diff := cmp.Diff(fileList, paths); diff != "" {
-					t.Errorf("unexpected files:\n%s", diff)
-				}
-			}
-
-			if err := r.executeHelmTemplate("foo", tmpDir); err != nil {
-				t.Errorf("unexpected error while verifying the final chart with helm template: %v", err)
-			}
-		})
-	}
 }

@@ -1,8 +1,9 @@
 package chartify
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateID(t *testing.T) {
@@ -34,21 +35,21 @@ func TestGenerateID(t *testing.T) {
 		release: "foo",
 		chart:   "incubator/raw",
 		opts:    ChartifyOpts{},
-		want:    "foo-79fc666848",
+		want:    "foo-57bddf47cd",
 	})
 
 	run(testcase{
 		release: "foo",
 		chart:   "stable/envoy",
 		opts:    ChartifyOpts{},
-		want:    "foo-6fc7d45f69",
+		want:    "foo-6486dd89f9",
 	})
 
 	run(testcase{
 		release: "bar",
 		chart:   "incubator/raw",
 		opts:    ChartifyOpts{},
-		want:    "bar-58858795d9",
+		want:    "bar-6b874894dc",
 	})
 
 	run(testcase{
@@ -56,7 +57,7 @@ func TestGenerateID(t *testing.T) {
 		opts: ChartifyOpts{
 			Namespace: "myns",
 		},
-		want: "myns-foo-6c7f9bd567",
+		want: "myns-foo-66cd978d59",
 	})
 
 	for id, n := range ids {
