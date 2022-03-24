@@ -1,0 +1,8 @@
+apiVersion: core/v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-relns
+  namespace: {{ .Release.Namespace }}
+spec:
+  foo: FOO
+

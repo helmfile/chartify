@@ -180,6 +180,20 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_release_namespace$ ./
+	// Related to https://github.com/variantdev/chartify/pull/13
+	runTest(t, integrationTestCase{
+		description: "local chart with release namespace",
+		release:     "myapp",
+		chart:       "./testdata/charts/relns",
+		opts: ChartifyOpts{
+			Namespace: "myns",
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/configmap.relns.strategic.yaml",
+			},
+		},
+	})
+
 	//
 	// Kubernets Manifests
 	//
