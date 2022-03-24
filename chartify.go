@@ -291,7 +291,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	chartName := filepath.Base(dirOrChart)
+	chartName := filepath.Base(filepath.Clean(dirOrChart))
 	if !isChart {
 		ver := u.ChartVersion
 		if u.ChartVersion == "" {
