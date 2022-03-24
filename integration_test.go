@@ -134,6 +134,52 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_slash_at_the_end$ ./
+	// Related to https://github.com/variantdev/chartify/pull/13
+	runTest(t, integrationTestCase{
+		description: "local chart with slash at the end",
+		release:     "myapp",
+		chart:       "./testdata/charts/db/./",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/deploy.db.strategic.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_dot_at_the_end$ ./
+	// Related to https://github.com/variantdev/chartify/pull/13
+	runTest(t, integrationTestCase{
+		description: "local chart with dot at the end",
+		release:     "myapp",
+		chart:       "./testdata/charts/db/./.",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/deploy.db.strategic.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
 	//
 	// Kubernets Manifests
 	//
