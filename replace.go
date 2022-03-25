@@ -91,9 +91,6 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		return nil, err
 	}
 
-	// This directory contains templates/ and charts/SUBCHART/templates
-	chartOutputDir := filepath.Join(helmOutputDir, chartName)
-
 	var command string
 
 	writtenFiles := map[string]bool{}
@@ -121,6 +118,30 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	stdout, err := r.run(command)
 	if err != nil {
 		return nil, err
+	}
+
+	helmOutputDirEntries, err := os.ReadDir(helmOutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read helm output dir entries: %w", err)
+	}
+
+	// This directory contains templates/ and charts/SUBCHART/templates
+	var chartOutputDir string
+
+	for _, e := range helmOutputDirEntries {
+		if !e.IsDir() {
+			return nil, fmt.Errorf("encountered unexpected dir entry at %s: it must be a dir but was not", e.Name())
+		}
+
+		if chartOutputDir != "" {
+			return nil, fmt.Errorf("assertion failed: there should be only one dir entry under the helm output dir %s", chartOutputDir)
+		}
+
+		chartOutputDir = filepath.Join(helmOutputDir, e.Name())
+	}
+
+	if !filepath.IsAbs(chartOutputDir) {
+		return nil, fmt.Errorf("assertion failed: unexpected dir entry %s: it mnust be a abs path", chartOutputDir)
 	}
 
 	// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
