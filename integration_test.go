@@ -194,6 +194,19 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_chart_name_unequal_to_dir_name$ ./
+	// Related to https://github.com/variantdev/chartify/pull/13#issuecomment-1077431214
+	runTest(t, integrationTestCase{
+		description: "local chart with chart name unequal to dir name",
+		release:     "myapp",
+		chart:       "./testdata/localchart",
+		opts: ChartifyOpts{
+			Namespace: "myns",
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/configmap.chartname.strategic.yaml",
+			},
+		},
+	})
 	//
 	// Kubernets Manifests
 	//
