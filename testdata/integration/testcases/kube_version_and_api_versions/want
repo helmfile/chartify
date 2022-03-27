@@ -1,11 +1,11 @@
 ---
 # Source: vers/templates/configmap.yaml
 # Source: vers/templates/configmap.yaml
-apiVersion: core/v1
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: vers1-vers
-spec:
+data:
   kubeVersion: v1.23.0
   apiVersion0: v1
   apiVersion1: admissionregistration.k8s.io/v1
