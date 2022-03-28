@@ -1,0 +1,60 @@
+---
+# Source: inaccessibledep/templates/configmap.yaml
+# Source: inaccessibledep/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inaccessible1-inaccessibledep
+  namespace: default
+data:
+  foo: FOO
+---
+# Source: inaccessibledep/templates/charts/log/templates/deployment.yaml
+# Source: inaccessibledep/charts/log/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inaccessible1-log
+  labels:
+    helm.sh/chart: log-0.1.0
+    app.kubernetes.io/name: log
+    app.kubernetes.io/instance: inaccessible1
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: log
+      app.kubernetes.io/instance: inaccessible1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: log
+        app.kubernetes.io/instance: inaccessible1
+    spec:
+      containers:
+        - name: log
+          image: "nginx:1.16.0"
+---
+# Source: inaccessibledep/templates/charts/log/templates/tests/test-connection.yaml
+# Source: inaccessibledep/charts/log/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "inaccessible1-log-test-connection"
+  labels:
+    helm.sh/chart: log-0.1.0
+    app.kubernetes.io/name: log
+    app.kubernetes.io/instance: inaccessible1
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['inaccessible1-log:80']
+  restartPolicy: Never

@@ -79,13 +79,19 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 		all = append(all, deps...)
 
 		if replace {
-			chartMeta.Dependencies = all
-		} else {
 			// When it's a remote chart, the helm-fetch preceded this chartification step
 			// should have been already downloaded all the dependencies into the charts/ directory.
+			//
 			// In that case, we need to remove the original Chart.yaml's `dependencies` to
 			// avoid failing due to unnecesarily trying to fetch chart dependencies.
+			//
+			// Note that this depends on how `helm package` used to package the chart served by the chart repo server works.
+			// We assume that `helm package` to enforce the package to contains `charts/*.tgz` for every dependency declared in Chart.yaml or requirements.yaml.
+			// If the package somehow misses the `charts/*.tgz` files even though it has one ore more dependencies in either Chart.yaml or requirements.yaml,
+			// this assumption breaks and chartify might not work well.
 			chartMeta.Dependencies = deps
+		} else {
+			chartMeta.Dependencies = all
 		}
 
 		chartYamlContent, err := yaml.Marshal(&chartMeta)

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-inaccessibledep
+  namespace: {{ .Release.Namespace }}
+data:
+  foo: FOO
