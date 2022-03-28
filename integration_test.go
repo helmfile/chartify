@@ -111,6 +111,26 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/disabled_inaccessible_chart_yaml_dep$ ./
+	runTest(t, integrationTestCase{
+		description: "disabled inaccessible chart yaml dep",
+		release:     "inaccessible1",
+		chart:       repo + "/inaccessibledep",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			SetFlags: []string{
+				"--set", "relns.enabled=false",
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
 	//
 	// Local Chart
 	//
@@ -207,6 +227,7 @@ func TestIntegration(t *testing.T) {
 			},
 		},
 	})
+
 	//
 	// Kubernets Manifests
 	//
