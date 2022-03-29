@@ -20,8 +20,11 @@ func (i *stringSlice) Set(value string) error {
 }
 
 func main() {
-	var file string
-	var outDir string
+	var (
+		file                string
+		outDir              string
+		strategicMergePatch string
+	)
 
 	opts := chartify.ChartifyOpts{
 		Debug:                       false,
@@ -37,6 +40,7 @@ func main() {
 		JsonPatches:                 nil,
 		StrategicMergePatches:       nil,
 		WorkaroundOutputDirIssue:    false,
+		IncludeCRDs:                 false,
 	}
 
 	deps := stringSlice{}
@@ -44,8 +48,18 @@ func main() {
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
 	flag.Var(&deps, "d", "one or more \"alias=chart:version\" to add adhoc chart dependencies")
+	flag.BoolVar(&opts.IncludeCRDs, "include-crds", false, "Whether to render CRDs contained in the chart and include the results into the output")
+	flag.StringVar(&strategicMergePatch, "strategic-merge-patch", "", "Path to a kustomize strategic merge patch file")
 
 	flag.Parse()
+
+	if file != "" {
+		opts.ValuesFiles = append(opts.ValuesFiles, file)
+	}
+
+	if strategicMergePatch != "" {
+		opts.StrategicMergePatches = append(opts.StrategicMergePatches, strategicMergePatch)
+	}
 
 	opts.DeprecatedAdhocChartDependencies = deps
 
