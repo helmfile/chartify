@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/otiai10/copy"
+	"helm.sh/helm/v3/pkg/registry"
 )
 
 var (
@@ -482,6 +483,11 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 		if isLocalChart {
 			name = filepath.Base(d.Chart)
 			repoUrl = fmt.Sprintf("file://%s", d.Chart)
+		} else if registry.IsOCI(d.Chart) {
+			name = filepath.Base(d.Chart)
+			// Trim trailing slash to avoid invalid repository error due to duplicate slash in oci registry url
+			// while running helm dependency up
+			repoUrl = strings.TrimSuffix(d.Chart, "/"+name)
 		} else {
 			repoAndChart := strings.Split(d.Chart, "/")
 			repo := repoAndChart[0]
