@@ -71,4 +71,23 @@ func TestReadAdhocDependencies(t *testing.T) {
 			},
 		},
 	})
+
+	run(testcase{
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Chart:   "oci://r.example.com/incubator/raw",
+					Version: "0.1.0",
+				},
+			},
+		},
+		want: []Dependency{
+			{
+				Repository: "oci://r.example.com/incubator",
+				Name:       "raw",
+				Version:    "0.1.0",
+				Condition:  "raw.enabled",
+			},
+		},
+	})
 }
