@@ -21,15 +21,9 @@ func TestIntegration(t *testing.T) {
 		helm = h
 	}
 
+	setupHelmConfig(t)
+
 	repo := "myrepo"
-
-	tempDir := filepath.Join(t.TempDir(), "helm")
-	helmCacheHome := filepath.Join(tempDir, "cache")
-	helmConfigHone := filepath.Join(tempDir, "config")
-
-	os.Setenv("HELM_CACHE_HOME", helmCacheHome)
-	os.Setenv("HELM_CONFIG_HOME", helmConfigHone)
-
 	startServer(t, repo)
 
 	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/adhoc_dependency_condition$ ./
@@ -272,6 +266,15 @@ func TestIntegration(t *testing.T) {
 			},
 		},
 	})
+}
+
+func setupHelmConfig(t *testing.T) {
+	tempDir := filepath.Join(t.TempDir(), "helm")
+	helmCacheHome := filepath.Join(tempDir, "cache")
+	helmConfigHone := filepath.Join(tempDir, "config")
+
+	os.Setenv("HELM_CACHE_HOME", helmCacheHome)
+	os.Setenv("HELM_CONFIG_HOME", helmConfigHone)
 }
 
 func startServer(t *testing.T, repo string) {
