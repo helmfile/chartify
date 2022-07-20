@@ -141,7 +141,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	}
 
 	if !filepath.IsAbs(chartOutputDir) {
-		return nil, fmt.Errorf("assertion failed: unexpected dir entry %s: it mnust be a abs path", chartOutputDir)
+		return nil, fmt.Errorf("assertion failed: unexpected dir entry %q it must be the abs path to the output directory", chartOutputDir)
 	}
 
 	// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
