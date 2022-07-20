@@ -2,16 +2,14 @@ package chartify
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/variantdev/chartify/chartrepo"
+	"github.com/variantdev/chartify/helmtesting"
 )
 
 var helm string = "helm"
@@ -278,62 +276,15 @@ func setupHelmConfig(t *testing.T) {
 }
 
 func startServer(t *testing.T, repo string) {
-	srvErr := make(chan error)
+	t.Helper()
+
 	port := 18080
-	srv := &chartrepo.Server{
-		Port: port,
+	srv := helmtesting.ChartRepoServerConfig{
+		Port:      port,
+		ChartsDir: "testdata/charts",
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		srvErr <- srv.Run(ctx, "testdata/charts")
-	}()
-
-	srvStart := make(chan struct{})
-	go func() {
-		for _ = range time.Tick(1 * time.Second) {
-			res, err := http.Get(srv.ServerURL() + "index.yaml")
-			if err == nil && res.StatusCode == http.StatusOK {
-				break
-			}
-
-			if res != nil {
-				t.Logf("Waiting for chartrepo server to start: code=%d", res.StatusCode)
-			} else {
-				t.Logf("Waiting for chartrepo server to start: error=%v", err)
-			}
-		}
-
-		srvStart <- struct{}{}
-	}()
-
-	select {
-	case <-srvStart:
-		t.Logf("chartrepo server started")
-	case <-time.After(10 * time.Second):
-		t.Fatalf("unable to restart chartrepo server within 10 seconds")
-	}
-
-	t.Cleanup(func() {
-		t.Logf("Stopping chartrepo server")
-
-		cancel()
-
-		select {
-		case err := <-srvErr:
-			if err != nil {
-				t.Log("cleanup: stopping cahrtrepo server: " + err.Error())
-			}
-		case <-time.After(3 * time.Second):
-			t.Log("cleanup: unable to stop chartrepo server within 3 seconds")
-		}
-	})
-
-	helmRepoAdd := exec.CommandContext(ctx, helm, "repo", "add", repo, srv.ServerURL())
-	helmRepoAddOut, err := helmRepoAdd.CombinedOutput()
-	t.Logf("%s repo add: %s", helm, string(helmRepoAddOut))
-	require.NoError(t, err)
-
-	t.Logf("Started chartrepo server")
+	s := helmtesting.StartChartRepoServer(t, srv)
+	helmtesting.AddChartRepo(t, helm, repo, s)
 }
 
 func runTest(t *testing.T, tc integrationTestCase) {

@@ -24,8 +24,9 @@ import (
 )
 
 type Server struct {
-	Port int
-	Host string
+	Port      int
+	Host      string
+	ChartsDir string
 }
 
 func (s *Server) getPort() int {
@@ -51,9 +52,13 @@ func (s *Server) ServerURL() string {
 	return serverURL
 }
 
-func (s *Server) Run(ctx context.Context, chartsDir string) error {
+func (s *Server) Run(ctx context.Context) error {
 	port := s.getPort()
 	serverURL := s.ServerURL()
+	chartsDir := s.ChartsDir
+	if chartsDir == "" {
+		return fmt.Errorf("ChartsDir is required")
+	}
 
 	worktree, err := os.MkdirTemp(os.TempDir(), "chartrepo")
 	if err != nil {

@@ -18,9 +18,12 @@ func main() {
 
 	dir := os.Args[1]
 
-	srv := &chartrepo.Server{}
+	srv := &chartrepo.Server{
+		Port:      18080,
+		ChartsDir: dir,
+	}
 
-	if err := srv.Run(ctx, dir); err != nil {
+	if err := srv.Run(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v", err)
 		os.Exit(1)
 	}
