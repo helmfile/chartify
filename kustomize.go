@@ -143,15 +143,15 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		r.Logf("Failed to parse `kustomize version` output: %v\nFalling-back to the kustomize v4 mode...", err)
 	}
 
-	if major > 3 {
-		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
-		if u.EnableAlphaPlugins {
-			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
-		}
-	} else {
+	if major <= 3 {
 		kustomizeArgs = append(kustomizeArgs, "--load_restrictor=none")
 		if u.EnableAlphaPlugins {
 			kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
+		}
+	} else {
+		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
+		if u.EnableAlphaPlugins {
+			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
 		}
 	}
 
