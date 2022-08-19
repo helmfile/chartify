@@ -674,7 +674,7 @@ func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (str
 	}
 
 	if len(files) != 1 {
-		return "", fmt.Errorf("%d additional files found in temp direcotry. This is very strange", len(files)-1)
+		return "", fmt.Errorf("%d additional files found in temp directory. This is very strange", len(files)-1)
 	}
 
 	return filepath.Join(tempDir, files[0].Name()), nil
