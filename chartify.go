@@ -220,7 +220,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	if !isChart && len(u.TemplateFuncs) > 0 {
 		templateFiles, err := r.SearchFiles(SearchFileOpts{
 			basePath: tempDir,
-			fileType: "gotmpl",
+			fileType: []string{"gotmpl"},
 		})
 		if err != nil {
 			return "", err
@@ -269,7 +269,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	} else if !isChart {
 		manifestFileOptions := SearchFileOpts{
 			basePath: tempDir,
-			fileType: "yaml",
+			fileType: []string{"yaml", "yml"},
 		}
 		manifestFiles, err := r.SearchFiles(manifestFileOptions)
 		if err != nil {

@@ -8,7 +8,7 @@ import (
 type SearchFileOpts struct {
 	basePath     string
 	matchSubPath string
-	fileType     string
+	fileType     []string
 }
 
 // SearchFiles returns a slice of files that are within the base path, has a matching sub path and file type
@@ -19,7 +19,14 @@ func (r *Runner) SearchFiles(o SearchFileOpts) ([]string, error) {
 		if !strings.Contains(path, o.matchSubPath+"/") {
 			return nil
 		}
-		if !strings.HasSuffix(path, o.fileType) {
+		var any bool
+		for _, t := range o.fileType {
+			any = strings.HasSuffix(path, t)
+			if any {
+				break
+			}
+		}
+		if !any {
 			return nil
 		}
 		files = append(files, path)
