@@ -62,7 +62,7 @@ func StartChartRepoServer(t *testing.T, srv ChartRepoServerConfig) ChartRepoServ
 		select {
 		case err := <-srvErr:
 			if err != nil {
-				t.Log("cleanup: stopping cahrtrepo server: " + err.Error())
+				t.Log("cleanup: stopping chartrepo server: " + err.Error())
 			}
 		case <-time.After(3 * time.Second):
 			t.Log("cleanup: unable to stop chartrepo server within 3 seconds")

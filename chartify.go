@@ -158,18 +158,40 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	isLocal, _ := r.Exists(dirOrChart)
 
-	isKustomization, err := r.Exists(filepath.Join(dirOrChart, "kustomization.yaml"))
-	if err != nil {
-		return "", err
+	var isKustomization bool
+
+	if isLocal {
+		if stat, err := os.Stat(dirOrChart); err != nil {
+			return "", fmt.Errorf("unable to stat %s: %w", dirOrChart, err)
+		} else if stat.IsDir() {
+			var err error
+			isKustomization, err = r.Exists(filepath.Join(dirOrChart, "kustomization.yaml"))
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 
 	var tempDir string
 	if !isKustomization {
 		tempDir = r.MakeTempDir(release, dirOrChart, u)
 
-		tempDir, err = r.copyToTempDir(dirOrChart, tempDir, u.ChartVersion)
-		if err != nil {
-			return "", err
+		if filepath.Ext(dirOrChart) == ".tgz" {
+			tgzReader, err := os.Open(dirOrChart)
+			if err != nil {
+				return "", fmt.Errorf("unable to open %s: %w", dirOrChart, err)
+			}
+
+			tempDir, err = ExtractFilesFromChartTGZ(tgzReader, tempDir)
+			if err != nil {
+				return "", fmt.Errorf("unable to extract files out of %s: %w", dirOrChart, err)
+			}
+		} else {
+			var err error
+			tempDir, err = r.copyToTempDir(dirOrChart, tempDir, u.ChartVersion)
+			if err != nil {
+				return "", err
+			}
 		}
 	} else {
 		tempDir = r.MakeTempDir(release, dirOrChart, u)
@@ -548,7 +570,9 @@ func (r *Runner) EnsureFilesDir(tempDir string) (string, error) {
 
 // RewriteChartToPreventDoubleRendering rewrites templates/*.yaml files with
 // template files containing:
-//   {{ .Files.Get "path/to/the/yaml/file" }}
+//
+//	{{ .Files.Get "path/to/the/yaml/file" }}
+//
 // So that re-running helm-template on chartify's final output doesn't result in double-rendering.
 // Double-rendering accidentally renders e.g. go template expressions embedded in prometheus rules manifests,
 // which is not what the user wants.

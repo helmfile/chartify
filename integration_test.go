@@ -220,6 +220,19 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_tgz_chart$ ./
+	runTest(t, integrationTestCase{
+		description: "local tgz chart",
+		release:     "myapp",
+		chart:       "./testdata/chartname-0.1.0.tgz",
+		opts: ChartifyOpts{
+			Namespace: "myns",
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/configmap.chartname.strategic.yaml",
+			},
+		},
+	})
+
 	//
 	// Kubernets Manifests
 	//
