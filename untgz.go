@@ -17,7 +17,7 @@ func ExtractFilesFromChartTGZ(tgzReader io.Reader, dir string) (string, error) {
 
 	d, err := os.Open(dir)
 	if err != nil {
-		return "", fmt.Errorf("unable to open %s as dir: %w", d, err)
+		return "", fmt.Errorf("unable to open %s as dir: %w", dir, err)
 	}
 
 	entries, err := d.ReadDir(0)
