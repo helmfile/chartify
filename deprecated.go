@@ -26,7 +26,7 @@ func (r *Runner) untarUnderDir(path, tempDir string) (string, error) {
 		for _, f := range files {
 			fs = append(fs, f.Name())
 		}
-		return "", fmt.Errorf("%d additional files found in temp direcotry. This is very strange:\n%s", len(files)-1, strings.Join(fs, "\n"))
+		return "", fmt.Errorf("%d additional files found in temp directory. This is very strange:\n%s", len(files)-1, strings.Join(fs, "\n"))
 	}
 	return filepath.Join(tempDir, files[0].Name()), nil
 }
