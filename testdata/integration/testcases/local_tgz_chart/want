@@ -1,0 +1,9 @@
+---
+# Source: chartname/templates/patched_resources.yaml
+apiVersion: core/v1
+kind: ConfigMap
+metadata:
+  name: myapp-chartname
+  namespace: myns
+spec:
+  foo: BAR
