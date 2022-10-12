@@ -357,7 +357,16 @@ func doTest(t *testing.T, tc integrationTestCase) {
 		require.NoError(t, err)
 	}
 
-	cmd := exec.CommandContext(ctx, helm, "template", tmpDir)
+	args := []string{"template", tc.release, tmpDir}
+	args = append(args, tc.opts.SetFlags...)
+	if tc.opts.KubeVersion != "" {
+		args = append(args, "--kube-version", tc.opts.KubeVersion)
+	}
+	for _, v := range tc.opts.ApiVersions {
+		args = append(args, "--api-versions", v)
+	}
+
+	cmd := exec.CommandContext(ctx, helm, args...)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 	got := string(out)

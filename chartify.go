@@ -419,7 +419,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	// This is required to support charts depend on `{{ .Release.Revision }}`,
 	// in case we don't need to run helm-template to generate the intermediate chart.
 	// See https://github.com/helmfile/helmfile/issues/430
-	if !needsNamespaceOverride && !needsKustomizeBuild && !needsInjections {
+	if !needsNamespaceOverride && !needsKustomizeBuild && !needsInjections && isChart {
 		return tempDir, nil
 	}
 

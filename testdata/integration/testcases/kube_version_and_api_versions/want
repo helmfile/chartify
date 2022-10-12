@@ -1,6 +1,5 @@
 ---
 # Source: vers/templates/configmap.yaml
-# Source: vers/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:

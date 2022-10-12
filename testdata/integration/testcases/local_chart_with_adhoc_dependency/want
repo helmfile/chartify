@@ -1,5 +1,4 @@
 ---
-# Source: db/templates/charts/log/templates/deployment.yaml
 # Source: db/charts/log/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +27,6 @@ spec:
           image: "nginx:1.16.0"
 ---
 # Source: db/templates/deployment.yaml
-# Source: db/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,7 +53,6 @@ spec:
         - name: db
           image: "nginx:1.16.0"
 ---
-# Source: db/templates/charts/log/templates/tests/test-connection.yaml
 # Source: db/charts/log/templates/tests/test-connection.yaml
 apiVersion: v1
 kind: Pod
@@ -77,7 +74,6 @@ spec:
       args: ['myapp-log:80']
   restartPolicy: Never
 ---
-# Source: db/templates/tests/test-connection.yaml
 # Source: db/templates/tests/test-connection.yaml
 apiVersion: v1
 kind: Pod
