@@ -410,6 +410,19 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		return "", fmt.Errorf("release %s: replacing requirements: %w", release, err)
 	}
 
+	var (
+		needsNamespaceOverride = overrideNamespace != ""
+		needsKustomizeBuild    = len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Transformers) > 0
+		needsInjections        = len(u.Injectors) > 0 || len(u.Injects) > 0
+	)
+
+	// This is required to support charts depend on `{{ .Release.Revision }}`,
+	// in case we don't need to run helm-template to generate the intermediate chart.
+	// See https://github.com/helmfile/helmfile/issues/430
+	if !needsNamespaceOverride && !needsKustomizeBuild && !needsInjections && isChart {
+		return tempDir, nil
+	}
+
 	generated, err := r.ReplaceWithRendered(release, chartName, tempDir, templateOptions)
 	if err != nil {
 		return "", err
@@ -422,13 +435,13 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	_ = os.Remove(filepath.Join(tempDir, "requirements.yaml"))
 	_ = os.Remove(filepath.Join(tempDir, "requirements.lock"))
 
-	if overrideNamespace != "" {
+	if needsNamespaceOverride {
 		if err := r.SetNamespace(tempDir, overrideNamespace); err != nil {
 			return "", err
 		}
 	}
 
-	if len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Transformers) > 0 {
+	if needsKustomizeBuild {
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,

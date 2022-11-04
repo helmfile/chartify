@@ -1,6 +1,5 @@
 ---
 # Source: inaccessibledep/templates/configmap.yaml
-# Source: inaccessibledep/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,7 +8,6 @@ metadata:
 data:
   foo: FOO
 ---
-# Source: inaccessibledep/templates/charts/log/templates/deployment.yaml
 # Source: inaccessibledep/charts/log/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -37,7 +35,6 @@ spec:
         - name: log
           image: "nginx:1.16.0"
 ---
-# Source: inaccessibledep/templates/charts/log/templates/tests/test-connection.yaml
 # Source: inaccessibledep/charts/log/templates/tests/test-connection.yaml
 apiVersion: v1
 kind: Pod
