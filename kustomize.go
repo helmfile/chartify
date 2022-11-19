@@ -93,7 +93,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	if err != nil {
 		return "", err
 	}
-	relPath, err := filepath.Rel(evaluatedPath, path.Join(prevDir, srcDir))
+	var absoluteSrcPath string
+	if filepath.IsAbs(srcDir) {
+		absoluteSrcPath = srcDir
+	} else {
+		absoluteSrcPath = path.Join(prevDir, srcDir)
+	}
+	relPath, err := filepath.Rel(evaluatedPath, absoluteSrcPath)
 	if err != nil {
 		return "", err
 	}
