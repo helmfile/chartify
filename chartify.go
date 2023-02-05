@@ -535,7 +535,7 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 			lines := strings.Split(out, "\n")
 			re := regexp.MustCompile(`\s+`)
 			for lineNum, line := range lines {
-				if lineNum == 0 {
+				if lineNum == 0 || line == "" {
 					continue
 				}
 				tokens := re.Split(line, -1)
