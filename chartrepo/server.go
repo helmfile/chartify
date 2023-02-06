@@ -160,20 +160,20 @@ func (s *Server) Run(ctx context.Context) error {
 	serveMux.HandleFunc("/index.yaml", func(w http.ResponseWriter, _ *http.Request) {
 		f, err := os.Open(indexYamlPath)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 
 		if _, err := io.Copy(w, f); err != nil {
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 	})
 
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, ".tgz") {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -183,13 +183,13 @@ func (s *Server) Run(ctx context.Context) error {
 
 		f, err := os.Open(pkgPath)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 
 		if _, err := io.Copy(w, f); err != nil {
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 	})

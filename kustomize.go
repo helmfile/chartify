@@ -137,6 +137,9 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	kustomizeArgs := []string{"-o", outputFile, "build"}
 
 	versionInfo, err := r.run(r.kustomizeBin(), "version", "--short")
+	if err != nil {
+		return "", err
+	}
 	version := strings.Split(strings.TrimPrefix(versionInfo, "{kustomize/v"), ".")
 	major, err := strconv.Atoi(version[0])
 	if err != nil {

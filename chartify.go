@@ -147,6 +147,7 @@ func WithChartifyOpts(opts *ChartifyOpts) ChartifyOption {
 //
 // Parameters:
 // * `release` is the name of Helm release being installed
+// nolint
 func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (string, error) {
 	u := &ChartifyOpts{}
 
@@ -350,7 +351,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	// We need to modify the original Chart.yaml dependencies or requirements.yaml dependencies to only include
 	// adhoc dependencies, so that it can be rendered and patched, along with the original chart and its subcharts.
 	// Note that we need to replace whole the deps when it's a remote chart,
-	// and add deps when it's a local chart. That's why we specify `!isLocal` as the first arugment(replace).
+	// and add deps when it's a local chart. That's why we specify `!isLocal` as the first argument(replace).
 	all, err := r.UpdateRequirements(!isLocal, chartYamlPath, tempDir, deps)
 	if err != nil {
 		return "", fmt.Errorf("release %s: updating requirements: %w", release, err)
@@ -506,9 +507,7 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 		})
 	}
 
-	for _, d := range u.AdhocChartDependencies {
-		adhocChartDependencies = append(adhocChartDependencies, d)
-	}
+	adhocChartDependencies = append(adhocChartDependencies, u.AdhocChartDependencies...)
 
 	for _, d := range adhocChartDependencies {
 		isLocalChart, _ := r.Exists(d.Chart)

@@ -199,7 +199,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	}
 
 	// We need to remove the Chart.yaml's `dependencies` field to
-	// avoid failing due to unnecesarily trying to fetch adhoc chart dependencies we've added just before this function.
+	// avoid failing due to unnecessarily trying to fetch adhoc chart dependencies we've added just before this function.
 	//
 	// The adhoc chart dependencies should already be rendered, patched, and included in the temporary chart
 	// we've generated so far. So we don't need to tell Helm to fetch chart dependencies again. They are already included.
@@ -235,7 +235,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 		chartYamlContent, err := yaml.Marshal(&chartMeta)
 		if err != nil {
-			return nil, fmt.Errorf("marshalling-back %s's Chart.yaml: %w", chartName, err)
+			return nil, fmt.Errorf("marshaling-back %s's Chart.yaml: %w", chartName, err)
 		}
 
 		r.Logf("Removing the dependencies field from the original Chart.yaml.")
@@ -261,7 +261,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 		requirementsYamlContent, err := yaml.Marshal(&reqs)
 		if err != nil {
-			return nil, fmt.Errorf("marshalling %s's requirements as YAML: %w", chartName, err)
+			return nil, fmt.Errorf("marshaling %s's requirements as YAML: %w", chartName, err)
 		}
 
 		if err := r.WriteFile(filepath.Join(chartPath, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {
@@ -302,23 +302,6 @@ func removeFileIfExists(f string) error {
 	}
 
 	if err := os.Remove(f); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *Runner) executeHelmTemplate(release, chart string) error {
-	var command string
-
-	if r.isHelm3 {
-		command = fmt.Sprintf("%s template --include-crds %s %s", r.helmBin(), release, chart)
-	} else {
-		command = fmt.Sprintf("%s template --name % s%s", r.helmBin(), release, chart)
-	}
-
-	_, err := r.run(command)
-	if err != nil {
 		return err
 	}
 

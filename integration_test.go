@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/variantdev/chartify/helmtesting"
 )
 
@@ -24,7 +25,7 @@ func TestIntegration(t *testing.T) {
 	repo := "myrepo"
 	startServer(t, repo)
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/adhoc_dependency_condition$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/adhoc_dependency_condition$ ./
 	runTest(t, integrationTestCase{
 		description: "adhoc dependency condition",
 		release:     "myapp",
@@ -43,7 +44,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/adhoc_dependency_condition_disabled$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/adhoc_dependency_condition_disabled$ ./
 	runTest(t, integrationTestCase{
 		description: "adhoc dependency condition disabled",
 		release:     "myapp",
@@ -62,7 +63,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/adhoc_dependency_condition_default$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/adhoc_dependency_condition_default$ ./
 	runTest(t, integrationTestCase{
 		description: "adhoc dependency condition default",
 		release:     "myapp",
@@ -78,7 +79,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/force_namespace$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/force_namespace$ ./
 	runTest(t, integrationTestCase{
 		description: "force namespace",
 		release:     "myapp",
@@ -88,7 +89,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/kube_version_and_api_versions$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/kube_version_and_api_versions$ ./
 	runTest(t, integrationTestCase{
 		description: "kube_version_and_api_versions",
 		release:     "vers1",
@@ -103,7 +104,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/disabled_inaccessible_chart_yaml_dep$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/disabled_inaccessible_chart_yaml_dep$ ./
 	runTest(t, integrationTestCase{
 		description: "disabled inaccessible chart yaml dep",
 		release:     "inaccessible1",
@@ -127,7 +128,7 @@ func TestIntegration(t *testing.T) {
 	// Local Chart
 	//
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_adhoc_dependency$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_adhoc_dependency$ ./
 	runTest(t, integrationTestCase{
 		description: "local chart with adhoc dependency",
 		release:     "myapp",
@@ -146,7 +147,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_slash_at_the_end$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_slash_at_the_end$ ./
 	// Related to https://github.com/variantdev/chartify/pull/13
 	runTest(t, integrationTestCase{
 		description: "local chart with slash at the end",
@@ -169,7 +170,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_dot_at_the_end$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_dot_at_the_end$ ./
 	// Related to https://github.com/variantdev/chartify/pull/13
 	runTest(t, integrationTestCase{
 		description: "local chart with dot at the end",
@@ -192,7 +193,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_release_namespace$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_release_namespace$ ./
 	// Related to https://github.com/variantdev/chartify/pull/13
 	runTest(t, integrationTestCase{
 		description: "local chart with release namespace",
@@ -206,7 +207,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_chart_with_chart_name_unequal_to_dir_name$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_chart_name_unequal_to_dir_name$ ./
 	// Related to https://github.com/variantdev/chartify/pull/13#issuecomment-1077431214
 	runTest(t, integrationTestCase{
 		description: "local chart with chart name unequal to dir name",
@@ -220,7 +221,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/local_tgz_chart$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_tgz_chart$ ./
 	runTest(t, integrationTestCase{
 		description: "local tgz chart",
 		release:     "myapp",
@@ -237,7 +238,7 @@ func TestIntegration(t *testing.T) {
 	// Kubernets Manifests
 	//
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/kube_manifest_with_adhoc_dep$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/kube_manifest_with_adhoc_dep$ ./
 	runTest(t, integrationTestCase{
 		description: "kube_manifest_with_adhoc_dep",
 		release:     "myapp",
@@ -256,7 +257,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/kube_manifest_with_patch$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/kube_manifest_with_patch$ ./
 	runTest(t, integrationTestCase{
 		description: "kube_manifest_with_patch",
 		release:     "myapp",
@@ -278,7 +279,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.17 test -run ^TestIntegration/kube_manifest_yml_with_patch$ ./
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/kube_manifest_yml_with_patch$ ./
 	runTest(t, integrationTestCase{
 		description: "kube_manifest_yml_with_patch",
 		release:     "myapp",
@@ -374,7 +375,7 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	snapshotFile := filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
 
 	// You can update the snapshot by running e.g.:
-	//   SAVE_SNAPSHOT=1 go1.17 test -run ^TestFramework$ ./
+	//   SAVE_SNAPSHOT=1 go1.20 test -run ^TestFramework$ ./
 	if os.Getenv("SAVE_SNAPSHOT") != "" {
 		testcaseDir := filepath.Dir(snapshotFile)
 		err = os.MkdirAll(testcaseDir, 0755)

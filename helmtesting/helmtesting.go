@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/variantdev/chartify/chartrepo"
 )
 
@@ -30,14 +31,18 @@ func StartChartRepoServer(t *testing.T, srv ChartRepoServerConfig) ChartRepoServ
 	}()
 
 	srvStart := make(chan struct{})
+	ticker := time.NewTicker(1 * time.Second)
 	go func() {
-		for _ = range time.Tick(1 * time.Second) {
+		defer ticker.Stop()
+		for range ticker.C {
 			res, err := http.Get(srv.ServerURL() + "index.yaml")
 			if err == nil && res.StatusCode == http.StatusOK {
+				_ = res.Body.Close()
 				break
 			}
 
 			if res != nil {
+				_ = res.Body.Close()
 				t.Logf("Waiting for chartrepo server to start: code=%d", res.StatusCode)
 			} else {
 				t.Logf("Waiting for chartrepo server to start: error=%v", err)

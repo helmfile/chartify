@@ -29,8 +29,8 @@ type ChartDependency struct {
 // UpdateRequirements updates either Chart.yaml's dependencies(helm 3) or requirements.yaml(helm 2)
 // so that our subsequent run of `helm dep up` can fulfill missing chart dependencies.
 // If it's a remote chart, only adhoc dependencies needs to be downloaded by `helm dep up` because the original
-// chart dependencies shold have been already fetched by preceeding `helm fetch`.
-// If it's a local chart, unlike a remote chart there is not preceeding step like `helm fetch` to download chart dependencies,
+// chart dependencies shold have been already fetched by preceding `helm fetch`.
+// If it's a local chart, unlike a remote chart there is not preceding step like `helm fetch` to download chart dependencies,
 // `helm dep up` needs to download all the original + adhoc dependencies.
 //
 // It returns an concatenated list of dependencies, including the original and the adhoc dependencies.
@@ -83,7 +83,7 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 			// should have been already downloaded all the dependencies into the charts/ directory.
 			//
 			// In that case, we need to remove the original Chart.yaml's `dependencies` to
-			// avoid failing due to unnecesarily trying to fetch chart dependencies.
+			// avoid failing due to unnecessarily trying to fetch chart dependencies.
 			//
 			// Note that this depends on how `helm package` used to package the chart served by the chart repo server works.
 			// We assume that `helm package` to enforce the package to contains `charts/*.tgz` for every dependency declared in Chart.yaml or requirements.yaml.
@@ -96,7 +96,7 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 
 		chartYamlContent, err := yaml.Marshal(&chartMeta)
 		if err != nil {
-			return nil, fmt.Errorf("marshalling-back Chart.yaml: %w", err)
+			return nil, fmt.Errorf("marshaling-back Chart.yaml: %w", err)
 		}
 
 		r.Logf("Removing the dependencies field from the original Chart.yaml.")
@@ -126,7 +126,7 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 
 		requirementsYamlContent, err := yaml.Marshal(&reqs)
 		if err != nil {
-			return nil, fmt.Errorf("marshalling requirements as YAML: %w", err)
+			return nil, fmt.Errorf("marshaling requirements as YAML: %w", err)
 		}
 
 		if err := r.WriteFile(filepath.Join(tempDir, "requirements.yaml"), requirementsYamlContent, 0644); err != nil {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +26,7 @@ type Runner struct {
 	CopyFile    func(src, dst string) error
 	WriteFile   func(filename string, data []byte, perm os.FileMode) error
 	ReadFile    func(filename string) ([]byte, error)
-	ReadDir     func(dirname string) ([]os.FileInfo, error)
+	ReadDir     func(dirname string) ([]os.DirEntry, error)
 	Walk        func(root string, walkFn filepath.WalkFunc) error
 	MakeTempDir func(release, chart string, opts *ChartifyOpts) string
 	Exists      func(path string) (bool, error)
@@ -64,9 +63,9 @@ func New(opts ...Option) *Runner {
 		KustomizeBinary: "",
 		RunCommand:      RunCommand,
 		CopyFile:        CopyFile,
-		WriteFile:       ioutil.WriteFile,
-		ReadFile:        ioutil.ReadFile,
-		ReadDir:         ioutil.ReadDir,
+		WriteFile:       os.WriteFile,
+		ReadFile:        os.ReadFile,
+		ReadDir:         os.ReadDir,
 		Walk:            filepath.Walk,
 		Exists:          exists,
 		Logf:            printf,
@@ -164,7 +163,7 @@ func (r *Runner) IsHelm3() bool {
 		return true
 	}
 
-	// Autodetect from `helm verison`
+	// Autodetect from `helm version`
 	out, err := r.run(r.helmBin(), "version", "--client", "--short")
 	if err != nil {
 		panic(err)
