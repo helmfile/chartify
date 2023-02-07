@@ -15,12 +15,16 @@ func CopyFile(src, dst string) error {
 	if srcfd, err = os.Open(src); err != nil {
 		return err
 	}
-	defer srcfd.Close()
+	defer func() {
+		_ = srcfd.Close()
+	}()
 
 	if dstfd, err = os.Create(dst); err != nil {
 		return err
 	}
-	defer dstfd.Close()
+	defer func() {
+		_ = dstfd.Close()
+	}()
 
 	if _, err = io.Copy(dstfd, srcfd); err != nil {
 		return err

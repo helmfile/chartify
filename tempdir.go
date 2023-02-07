@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +27,7 @@ func makeTempDir(release, chart string, opts *ChartifyOpts) string {
 
 	workDir := os.Getenv(EnvVarTempDir)
 	if workDir == "" {
-		workDir, err = ioutil.TempDir(os.TempDir(), "chartify")
+		workDir, err = os.MkdirTemp(os.TempDir(), "chartify")
 		if err != nil {
 			panic(err)
 		}
@@ -49,7 +48,7 @@ func makeTempDir(release, chart string, opts *ChartifyOpts) string {
 		})
 
 		if len(bs) > 0 {
-			_ = ioutil.WriteFile(d+".json", bs, 0666)
+			_ = os.WriteFile(d+".json", bs, 0666)
 		}
 	}
 
@@ -95,7 +94,7 @@ func HashObject(obj interface{}) (string, error) {
 		DisableMethods: true,
 		SpewKeys:       true,
 	}
-	printer.Fprintf(hash, "%#v", obj)
+	_, _ = printer.Fprintf(hash, "%#v", obj)
 
 	sum := fmt.Sprint(hash.Sum32())
 

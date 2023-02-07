@@ -2,10 +2,11 @@ package chartify
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
 // SetNamespace is a poor-man's `kubectl apply -f DIR --dry-run -o yaml --namespace NAMESPACE`
@@ -25,7 +26,9 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() {
+				_ = f.Close()
+			}()
 
 			var docs []yaml.Node
 
@@ -67,7 +70,7 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 					c := doc.Content[resourceIndex].Content[metadataIndex].Content
 					if namespaceIndex > -1 {
 						// Do not override the namespace when it's already specified,
-						// to replicate K8s and Helm behaviour.
+						// to replicate K8s and Helm behavior.
 						//
 						//c[namespaceIndex].Value = ns
 					} else {
@@ -91,21 +94,23 @@ func (r *Runner) SetNamespace(tempDir, ns string) error {
 				docs = append(docs, doc)
 			}
 
-			f.Close()
-
 			w, err := os.OpenFile(path, os.O_TRUNC|os.O_WRONLY, 0644)
 			if err != nil {
 				return fmt.Errorf("opening file %s: %v", path, err)
 			}
-			defer w.Sync()
-			defer w.Close()
+			defer func() {
+				_ = w.Sync()
+			}()
+			defer func() {
+				_ = w.Close()
+			}()
 
 			enc := yaml.NewEncoder(w)
 			enc.SetIndent(2)
 
 			for _, doc := range docs {
 				if err := enc.Encode(&doc); err != nil {
-					return fmt.Errorf("marshalling doc %+v: %v", doc, err)
+					return fmt.Errorf("marshaling doc %+v: %v", doc, err)
 				}
 			}
 

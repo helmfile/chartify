@@ -13,7 +13,6 @@ type InjectOpts struct {
 func (r *Runner) Inject(files []string, o InjectOpts) error {
 	var flagsTemplate string
 	for _, inj := range o.injectors {
-
 		tokens := strings.Split(inj, ",")
 		injector := tokens[0]
 		injectFlags := tokens[1:]

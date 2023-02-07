@@ -76,7 +76,9 @@ func ExtractFilesFromTGZ(tgzReader io.Reader, dir string) error {
 			if err != nil {
 				return fmt.Errorf("unable to create %q: %w", name, err)
 			}
-			defer outFile.Close()
+			defer func() {
+				_ = outFile.Close()
+			}()
 			if _, err := io.Copy(outFile, tReader); err != nil {
 				return fmt.Errorf("unable to write %q: %w", name, err)
 			}

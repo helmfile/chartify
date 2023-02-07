@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +28,7 @@ type PatchOption interface {
 	SetPatchOption(*PatchOpts) error
 }
 
+// nolint
 func (r *Runner) Patch(tempDir string, generatedManifestFiles []string, opts ...PatchOption) error {
 	u := &PatchOpts{}
 
@@ -169,7 +169,7 @@ resources:
 
 	var resources, crds []string
 
-	bs, err := ioutil.ReadFile(renderedFile)
+	bs, err := os.ReadFile(renderedFile)
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", renderedFileName, err)
 	}
@@ -193,7 +193,7 @@ resources:
 		}
 
 		if i := bytes.Index(d, []byte("\n---\n")); i >= 0 {
-			return i + 5, d[0:i+1], nil
+			return i + 5, d[0 : i+1], nil
 		}
 
 		// "SplitFunc can return (0, nil, nil) to signal the Scanner to read more data into the slice and try again with a longer slice starting at the same point in the input."
@@ -252,13 +252,15 @@ resources:
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		w := bufio.NewWriter(f)
 
 		for _, resource := range resources {
-			w.WriteString(resource)
-			w.WriteString("---\n")
+			_, _ = w.WriteString(resource)
+			_, _ = w.WriteString("---\n")
 		}
 
 		if err := w.Flush(); err != nil {
@@ -276,12 +278,14 @@ resources:
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		w := bufio.NewWriter(f)
 		for _, crd := range crds {
-			w.WriteString(crd)
-			w.WriteString("---\n")
+			_, _ = w.WriteString(crd)
+			_, _ = w.WriteString("---\n")
 		}
 
 		if err := w.Flush(); err != nil {
