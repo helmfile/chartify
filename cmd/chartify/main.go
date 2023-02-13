@@ -32,7 +32,6 @@ func main() {
 		SetValues:                   nil,
 		Namespace:                   "",
 		ChartVersion:                "",
-		TillerNamespace:             "",
 		EnableKustomizeAlphaPlugins: false,
 		Injectors:                   nil,
 		Injects:                     nil,
