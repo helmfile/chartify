@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/variantdev/chartify/chartrepo"
+	"github.com/helmfile/chartify/chartrepo"
 )
 
 type ChartRepoServerConfig = chartrepo.Server

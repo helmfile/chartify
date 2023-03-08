@@ -1,7 +1,7 @@
 apiVersion: v2
 # The important point is that this `chartName` does't match with
 # the directory name `localchart`.
-# This resulted in https://github.com/variantdev/chartify/pull/13#issuecomment-1077431214 before.
+# This resulted in https://github.com/helmfile/chartify/pull/13#issuecomment-1077431214 before.
 name: chartname
 description: A Helm chart for Kubernetes
 type: application
