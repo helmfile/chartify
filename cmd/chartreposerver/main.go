@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/variantdev/chartify/chartrepo"
+	"github.com/helmfile/chartify/chartrepo"
 )
 
 func main() {

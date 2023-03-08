@@ -1,4 +1,4 @@
-module github.com/variantdev/chartify
+module github.com/helmfile/chartify
 
 go 1.20
 

@@ -298,7 +298,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 
 func removeFileIfExists(f string) error {
 	if _, err := os.Stat(f); err != nil {
-		return err
+		return nil
 	}
 
 	if err := os.Remove(f); err != nil {
