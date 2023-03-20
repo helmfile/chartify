@@ -157,12 +157,14 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 	if version.Major() > 3 {
 		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
+		if u.EnableAlphaPlugins {
+			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
+		}
 	} else {
 		kustomizeArgs = append(kustomizeArgs, "--load_restrictor=none")
-	}
-
-	if u.EnableAlphaPlugins {
-		kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
+		if u.EnableAlphaPlugins {
+			kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
+		}
 	}
 
 	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
