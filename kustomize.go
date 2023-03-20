@@ -146,7 +146,11 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		return "", err
 	}
 
-	version, err := semver.NewVersion(versionInfo)
+	vi, err := FindSemVerInfo(versionInfo)
+	if err != nil {
+		return "", err
+	}
+	version, err := semver.NewVersion(vi)
 	if err != nil {
 		return "", err
 	}
