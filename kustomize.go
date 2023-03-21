@@ -5,9 +5,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -142,17 +141,21 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
 	kustomizeArgs := []string{"-o", outputFile, "build"}
 
-	versionInfo, err := r.run(r.kustomizeBin(), "version", "--short")
+	versionInfo, err := r.run(r.kustomizeBin(), "version")
 	if err != nil {
 		return "", err
 	}
-	version := strings.Split(strings.TrimPrefix(versionInfo, "{kustomize/v"), ".")
-	major, err := strconv.Atoi(version[0])
+
+	vi, err := FindSemVerInfo(versionInfo)
 	if err != nil {
-		r.Logf("Failed to parse `kustomize version` output: %v\nFalling-back to the kustomize v4 mode...", err)
+		return "", err
+	}
+	version, err := semver.NewVersion(vi)
+	if err != nil {
+		return "", err
 	}
 
-	if major > 3 {
+	if version.Major() > 3 {
 		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
 		if u.EnableAlphaPlugins {
 			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")

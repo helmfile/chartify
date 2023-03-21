@@ -2,8 +2,13 @@ package chartify
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+const semVerRegex string = `v?([0-9]+)(\.[0-9]+)?(\.[0-9]+)?` +
+	`(-([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?` +
+	`(\+([0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*))?`
 
 func createFlagChain(flag string, input []string) string {
 	chain := ""
@@ -43,4 +48,13 @@ func indent(text, indent string) string {
 	}
 
 	return b.String()
+}
+
+func FindSemVerInfo(version string) (string, error) {
+	v := regexp.MustCompile(semVerRegex).FindString(version)
+
+	if v == "" {
+		return "", fmt.Errorf("unable to find semver info in %s", version)
+	}
+	return v, nil
 }
