@@ -115,8 +115,8 @@ func (r *Runner) run(envs map[string]string, cmd string, args ...string) (string
 	return out, err
 }
 
-func (r *Runner) runInDir(dir, cmd string, args ...string) (string, error) {
-	bytes, err := r.runBytes(nil, dir, cmd, args...)
+func (r *Runner) runInDir(envs map[string]string, dir, cmd string, args ...string) (string, error) {
+	bytes, err := r.runBytes(envs, dir, cmd, args...)
 
 	var out string
 
