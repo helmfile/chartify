@@ -114,13 +114,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		for _, image := range kustomizeOpts.Images {
 			args = append(args, image.String())
 		}
-		_, err := r.runInDir(nil, tempDir, r.kustomizeBin(), args...)
+		_, err := r.runInDir(tempDir, r.kustomizeBin(), args...)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.NamePrefix != "" {
-		_, err := r.runInDir(nil, tempDir, r.kustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
+		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
 		if err != nil {
 			fmt.Println(err)
 			return "", err
@@ -128,13 +128,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 	if kustomizeOpts.NameSuffix != "" {
 		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
-		_, err := r.runInDir(nil, tempDir, r.kustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
+		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.Namespace != "" {
-		_, err := r.runInDir(nil, tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
+		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
 			return "", err
 		}
@@ -159,7 +159,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		kustomizeArgs = append(kustomizeArgs, "--helm-command="+u.HelmBinary)
 	}
 
-	out, err := r.runInDir(nil, tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
+	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return "", err
 	}
