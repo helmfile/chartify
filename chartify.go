@@ -694,7 +694,6 @@ func (r *Runner) copyToTempDir(path, tempDir, chartVersion string) (string, erro
 }
 
 func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (string, error) {
-
 	ociEnv := map[string]string{
 		"HELM_EXPERIMENTAL_OCI": "1",
 	}
