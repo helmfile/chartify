@@ -444,6 +444,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,
 			Transformers:          u.Transformers,
+			EnableAlphaPlugins:    u.EnableKustomizeAlphaPlugins,
 		}
 		if err := r.Patch(tempDir, generatedManifestFiles, patchOpts); err != nil {
 			return "", err

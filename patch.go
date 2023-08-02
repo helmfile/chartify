@@ -17,6 +17,11 @@ type PatchOpts struct {
 	StrategicMergePatches []string
 
 	Transformers []string
+
+	// Kustomize alpha plugin enable flag.
+	// Above Kustomize v3, it is `--enable-alpha-plugins`.
+	// Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
+	EnableAlphaPlugins bool
 }
 
 func (o *PatchOpts) SetPatchOption(opts *PatchOpts) error {
@@ -162,7 +167,18 @@ resources:
 	renderedFileName := "all.patched.yaml"
 	renderedFile := filepath.Join(tempDir, renderedFileName)
 	r.Logf("Generating %s", renderedFile)
-	_, err := r.run(r.kustomizeBin(), "build", tempDir, "--output", renderedFile)
+
+	kustomizeArgs := []string{"build", tempDir, "--output", renderedFile}
+
+	if u.EnableAlphaPlugins {
+		f, err := r.kustomizeEnableAlphaPluginsFlag()
+		if err != nil {
+			return err
+		}
+		kustomizeArgs = append(kustomizeArgs, f)
+	}
+
+	_, err := r.run(r.kustomizeBin(), kustomizeArgs...)
 	if err != nil {
 		return err
 	}
