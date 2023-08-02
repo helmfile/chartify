@@ -141,16 +141,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
 	kustomizeArgs := []string{"-o", outputFile, "build"}
 
-	versionInfo, err := r.run(r.kustomizeBin(), "version")
-	if err != nil {
-		return "", err
-	}
-
-	vi, err := FindSemVerInfo(versionInfo)
-	if err != nil {
-		return "", err
-	}
-	version, err := semver.NewVersion(vi)
+	version, err := r.kustomizeVersion()
 	if err != nil {
 		return "", err
 	}
@@ -178,4 +169,36 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 
 	return outputFile, nil
+}
+
+// kustomizeVersion returns the kustomize binary version.
+func (r *Runner) kustomizeVersion() (*semver.Version, error) {
+	versionInfo, err := r.run(r.kustomizeBin(), "version")
+	if err != nil {
+		return nil, err
+	}
+
+	vi, err := FindSemVerInfo(versionInfo)
+	if err != nil {
+		return nil, err
+	}
+	version, err := semver.NewVersion(vi)
+	if err != nil {
+		return nil, err
+	}
+	return version, nil
+}
+
+// kustomizeEnableAlphaPluginsFlag returns the kustomize binary alpha plugin argument.
+// Above Kustomize v3, it is `--enable-alpha-plugins`.
+// Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
+func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
+	version, err := r.kustomizeVersion()
+	if err != nil {
+		return "", err
+	}
+	if version.Major() > 3 {
+		return "--enable-alpha-plugins", nil
+	}
+	return "--enable_alpha_plugins", nil
 }

@@ -1,0 +1,10 @@
+apiVersion: builtin
+kind: AnnotationsTransformer
+metadata:
+  name: not-important-to-example
+annotations:
+  app: myApp
+  greeting/morning: a string with blanks
+fieldSpecs:
+- path: metadata/annotations
+  create: true

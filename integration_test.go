@@ -300,6 +300,29 @@ func TestIntegration(t *testing.T) {
 			},
 		},
 	})
+
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/kube_manifest_transformer_alpha_plugin$ ./
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_transformer_alpha_plugin",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest_yml",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + "/log",
+					Version: "0.1.0",
+				},
+			},
+			Transformers: []string{
+				"./testdata/kube_manifest_transformer_alpha_plugin/annotations.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+			EnableKustomizeAlphaPlugins: true,
+		},
+	})
 }
 
 func setupHelmConfig(t *testing.T) {
