@@ -141,22 +141,19 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
 	kustomizeArgs := []string{"-o", outputFile, "build"}
 
-	version, err := r.kustomizeVersion()
+	if u.EnableAlphaPlugins {
+		f, err := r.kustomizeEnableAlphaPluginsFlag()
+		if err != nil {
+			return "", err
+		}
+		kustomizeArgs = append(kustomizeArgs, f)
+	}
+
+	f, err := r.kustomizeLoadRestrictionsNoneFlag()
 	if err != nil {
 		return "", err
 	}
-
-	if version.Major() > 3 {
-		kustomizeArgs = append(kustomizeArgs, "--load-restrictor=LoadRestrictionsNone")
-		if u.EnableAlphaPlugins {
-			kustomizeArgs = append(kustomizeArgs, "--enable-alpha-plugins")
-		}
-	} else {
-		kustomizeArgs = append(kustomizeArgs, "--load_restrictor=none")
-		if u.EnableAlphaPlugins {
-			kustomizeArgs = append(kustomizeArgs, "--enable_alpha_plugins")
-		}
-	}
+	kustomizeArgs = append(kustomizeArgs, f)
 
 	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
 	if err != nil {
@@ -201,4 +198,19 @@ func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
 		return "--enable-alpha-plugins", nil
 	}
 	return "--enable_alpha_plugins", nil
+}
+
+// kustomizeLoadRestrictionsNoneFlag returns the kustomize loading files from outside
+// the root argument.
+// Above Kustomize v3, it is `--load-restrictor=LoadRestrictionsNone`.
+// Below Kustomize v3 (including v3), it is `--load_restrictor=none`.
+func (r *Runner) kustomizeLoadRestrictionsNoneFlag() (string, error) {
+	version, err := r.kustomizeVersion()
+	if err != nil {
+		return "", err
+	}
+	if version.Major() > 3 {
+		return "--load-restrictor=LoadRestrictionsNone", nil
+	}
+	return "--load_restrictor=none", nil
 }
