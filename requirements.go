@@ -13,11 +13,12 @@ type Requirements struct {
 }
 
 type Dependency struct {
-	Name       string `yaml:"name,omitempty"`
-	Repository string `yaml:"repository,omitempty"`
-	Condition  string `yaml:"condition,omitempty"`
-	Alias      string `yaml:"alias,omitempty"`
-	Version    string `yaml:"version,omitempty"`
+	Name         string   `yaml:"name,omitempty"`
+	Repository   string   `yaml:"repository,omitempty"`
+	Condition    string   `yaml:"condition,omitempty"`
+	Alias        string   `yaml:"alias,omitempty"`
+	Version      string   `yaml:"version,omitempty"`
+	ImportValues []string `yaml:"import-values,omitempty"`
 }
 
 type ChartDependency struct {

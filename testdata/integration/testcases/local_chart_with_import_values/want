@@ -1,0 +1,9 @@
+---
+# Source: importvalues/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myapp-imported-values
+  namespace: default
+data:
+  foo: FOO
