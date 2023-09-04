@@ -234,6 +234,13 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.20 test -run ^TestIntegration/local_chart_with_import_values$ ./
+	runTest(t, integrationTestCase{
+		description: "local_chart_with_import_values",
+		release:     "myapp",
+		chart:       "./testdata/charts/importvalues",
+	})
+
 	//
 	// Kubernets Manifests
 	//
