@@ -58,18 +58,24 @@ func WithLogf(logf func(string, ...interface{})) Option {
 	}
 }
 
+func KustomizeBin(b string) Option {
+	return func(r *Runner) error {
+		r.KustomizeBinary = b
+		return nil
+	}
+}
+
 func New(opts ...Option) *Runner {
 	r := &Runner{
-		KustomizeBinary: "",
-		RunCommand:      RunCommand,
-		CopyFile:        CopyFile,
-		WriteFile:       os.WriteFile,
-		ReadFile:        os.ReadFile,
-		ReadDir:         os.ReadDir,
-		Walk:            filepath.Walk,
-		Exists:          exists,
-		Logf:            printf,
-		MakeTempDir:     makeTempDir,
+		RunCommand:  RunCommand,
+		CopyFile:    CopyFile,
+		WriteFile:   os.WriteFile,
+		ReadFile:    os.ReadFile,
+		ReadDir:     os.ReadDir,
+		Walk:        filepath.Walk,
+		Exists:      exists,
+		Logf:        printf,
+		MakeTempDir: makeTempDir,
 	}
 
 	for i := range opts {
