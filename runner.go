@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 )
 
 type RunCommandFunc func(name string, args []string, dir string, stdout, stderr io.Writer, env map[string]string) error

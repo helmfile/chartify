@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/otiai10/copy"
 	"helm.sh/helm/v3/pkg/registry"
 )
