@@ -251,14 +251,15 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 	generatedManifestsUnderTemplatesDir := []string{}
 
 	if isKustomization {
-		kustomOpts := &KustomizeBuildOpts{
+		kustomizeOpts := &KustomizeBuildOpts{
 			ValuesFiles:        u.ValuesFiles,
 			SetValues:          u.SetValues,
 			SetFlags:           u.SetFlags,
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
 			Namespace:          u.Namespace,
+			HelmBinary:         r.helmBin(),
 		}
-		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomOpts)
+		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomizeOpts)
 		if err != nil {
 			return "", err
 		}
