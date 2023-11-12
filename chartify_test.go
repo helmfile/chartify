@@ -1,7 +1,9 @@
 package chartify
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -110,4 +112,57 @@ func TestReadAdhocDependencies(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestUseHelmChartsInKustomize(t *testing.T) {
+	repo := "myrepo"
+	startServer(t, repo)
+
+	r := New(UseHelm3(true), HelmBin(helm))
+
+	tests := []struct {
+		name string
+		opts ChartifyOpts
+	}{
+		{
+			name: "--enable_alpha_plugins is ON",
+			opts: ChartifyOpts{
+				EnableKustomizeAlphaPlugins: true,
+			},
+		},
+		{
+			name: "--enable_alpha_plugins is OFF",
+			opts: ChartifyOpts{
+				EnableKustomizeAlphaPlugins: false,
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
+
+			release := "myapp"
+			tmpDir, err := r.Chartify(release, "./testdata/kustomize_with_helm_charts", &tc.opts)
+			t.Cleanup(func() {
+				if err := os.RemoveAll(tmpDir); err != nil {
+					panic("unable to remove chartify tmpDir: " + err.Error())
+				}
+			})
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			args := []string{"template", release, tmpDir}
+			cmd := exec.CommandContext(ctx, helm, args...)
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err)
+			got := string(out)
+
+			snapshotFile := "./testdata/integration/testcases/kustomize_with_helm_charts/want"
+			snapshot, err := os.ReadFile(snapshotFile)
+			require.NoError(t, err, "reading snapshot %s", snapshotFile)
+
+			want := string(snapshot)
+			require.Equal(t, want, got)
+		})
+	}
 }

@@ -1,2 +1,5 @@
 *~
 .idea
+
+# testdata
+testdata/kustomize_with_helm_charts/charts/

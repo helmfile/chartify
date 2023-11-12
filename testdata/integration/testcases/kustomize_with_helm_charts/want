@@ -1,0 +1,25 @@
+
+---
+# Source: kustomize_with_helm_charts/templates/kustomized.yaml
+# Source: kustomize_with_helm_charts/templates/kustomized.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    helm.sh/hook: test
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: log
+    app.kubernetes.io/version: 1.16.0
+    helm.sh/chart: log-0.1.0
+  name: release-name-log-test-connection
+spec:
+  containers:
+  - args:
+    - release-name-log:80
+    command:
+    - wget
+    image: busybox
+    name: wget
+  restartPolicy: Never
