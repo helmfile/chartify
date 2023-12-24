@@ -180,6 +180,10 @@ func (r *Runner) IsHelm3() bool {
 	return sv.Major() == 3
 }
 
+// DetectHelmVersion detects the version of Helm installed on the system.
+// It runs the `helm version` command and parses the output to extract the client version.
+// Returns the detected Helm version as a semver.Version object.
+// If an error occurs during the detection process, it returns an error.
 func (r *Runner) DetectHelmVersion() (*semver.Version, error) {
 	// Autodetect from `helm version`
 	out, err := r.run(nil, r.helmBin(), "version", "--client", "--short")
