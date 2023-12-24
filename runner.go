@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 type RunCommandFunc func(name string, args []string, dir string, stdout, stderr io.Writer, env map[string]string) error
@@ -101,8 +103,8 @@ func (r *Runner) kustomizeBin() string {
 	return "kustomize"
 }
 
-func (r *Runner) run(cmd string, args ...string) (string, error) {
-	bytes, err := r.runBytes("", cmd, args...)
+func (r *Runner) run(envs map[string]string, cmd string, args ...string) (string, error) {
+	bytes, err := r.runBytes(envs, "", cmd, args...)
 
 	var out string
 
@@ -114,7 +116,7 @@ func (r *Runner) run(cmd string, args ...string) (string, error) {
 }
 
 func (r *Runner) runInDir(dir, cmd string, args ...string) (string, error) {
-	bytes, err := r.runBytes(dir, cmd, args...)
+	bytes, err := r.runBytes(nil, dir, cmd, args...)
 
 	var out string
 
@@ -125,7 +127,7 @@ func (r *Runner) runInDir(dir, cmd string, args ...string) (string, error) {
 	return out, err
 }
 
-func (r *Runner) runBytes(dir, cmd string, args ...string) ([]byte, error) {
+func (r *Runner) runBytes(envs map[string]string, dir, cmd string, args ...string) ([]byte, error) {
 	nameArgs := strings.Split(cmd, " ")
 
 	name := nameArgs[0]
@@ -137,7 +139,7 @@ func (r *Runner) runBytes(dir, cmd string, args ...string) ([]byte, error) {
 		args = a
 	}
 
-	bytes, errBytes, err := r.captureBytes(name, args, dir)
+	bytes, errBytes, err := r.captureBytes(name, args, dir, envs)
 	if err != nil {
 		c := strings.Join(append([]string{name}, args...), " ")
 
@@ -170,15 +172,43 @@ func (r *Runner) IsHelm3() bool {
 	}
 
 	// Autodetect from `helm version`
-	out, err := r.run(r.helmBin(), "version", "--client", "--short")
+	sv, err := r.DetectHelmVersion()
 	if err != nil {
 		panic(err)
 	}
 
-	return strings.HasPrefix(out, "v3.")
+	return sv.Major() == 3
 }
 
-func (r *Runner) captureBytes(binary string, args []string, dir string) ([]byte, []byte, error) {
+// DetectHelmVersion detects the version of Helm installed on the system.
+// It runs the `helm version` command and parses the output to extract the client version.
+// Returns the detected Helm version as a semver.Version object.
+// If an error occurs during the detection process, it returns an error.
+func (r *Runner) DetectHelmVersion() (*semver.Version, error) {
+	// Autodetect from `helm version`
+	out, err := r.run(nil, r.helmBin(), "version", "--client", "--short")
+	if err != nil {
+		return nil, fmt.Errorf("error determining helm version: %w", err)
+	}
+
+	if len(out) == 0 {
+		return nil, fmt.Errorf("error determining helm version: output was empty")
+	}
+	v, err := FindSemVerInfo(out)
+
+	if err != nil {
+		return nil, fmt.Errorf("error find helm srmver version '%s': %w", out, err)
+	}
+
+	ver, err := semver.NewVersion(v)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing helm version '%s'", ver)
+	}
+
+	return ver, nil
+}
+
+func (r *Runner) captureBytes(binary string, args []string, dir string, envs map[string]string) ([]byte, []byte, error) {
 	r.Logf("running %s %s", binary, strings.Join(args, " "))
 	_, err := exec.LookPath(binary)
 	if err != nil {
@@ -186,7 +216,7 @@ func (r *Runner) captureBytes(binary string, args []string, dir string) ([]byte,
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = r.RunCommand(binary, args, dir, &stdout, &stderr, map[string]string{})
+	err = r.RunCommand(binary, args, dir, &stdout, &stderr, envs)
 	if err != nil {
 		r.Logf(stderr.String())
 	}
