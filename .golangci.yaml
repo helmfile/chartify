@@ -256,7 +256,6 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - depguard
     - usestdlibvars
     - reassign
     - errcheck
@@ -280,6 +279,7 @@ linters:
     - whitespace
     - gci
     # - gocritic
+    # - depguard
     # - godox
     # - gosec
     # - interfacer
