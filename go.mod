@@ -108,8 +108,8 @@ require (
 )
 
 replace (
-	github.com/docker/cli => github.com/docker/cli v20.10.21+incompatible
-	github.com/docker/docker => github.com/docker/docker v20.10.21+incompatible
+	github.com/docker/cli => github.com/docker/cli v20.10.19+incompatible
+	github.com/docker/docker => github.com/docker/docker v20.10.19+incompatible
 )
 
 replace oras.land/oras-go => oras.land/oras-go v1.2.3
