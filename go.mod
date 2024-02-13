@@ -3,7 +3,7 @@ module github.com/helmfile/chartify
 go 1.22
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/google/go-cmp v0.6.0
 	github.com/otiai10/copy v1.14.0
