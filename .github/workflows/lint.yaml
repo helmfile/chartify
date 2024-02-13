@@ -14,13 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
           cache: true
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Golangci lint
         uses: golangci/golangci-lint-action@v3
