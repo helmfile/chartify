@@ -13,7 +13,10 @@ import (
 	"github.com/helmfile/chartify/helmtesting"
 )
 
-var helm string = "helm"
+var (
+	helm        string = "helm"
+	chartSuffix        = "/log"
+)
 
 func TestIntegration(t *testing.T) {
 	if h := os.Getenv("HELM_BIN"); h != "" {
@@ -34,7 +37,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -53,7 +56,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -72,7 +75,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -113,7 +116,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -137,7 +140,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -157,7 +160,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -180,7 +183,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -254,7 +257,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -273,7 +276,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -295,7 +298,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
@@ -317,7 +320,7 @@ func TestIntegration(t *testing.T) {
 			AdhocChartDependencies: []ChartDependency{
 				{
 					Alias:   "log",
-					Chart:   repo + "/log",
+					Chart:   repo + chartSuffix,
 					Version: "0.1.0",
 				},
 			},
