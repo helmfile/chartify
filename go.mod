@@ -92,6 +92,7 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 	k8s.io/api v0.29.0 // indirect
 	k8s.io/apimachinery v0.29.0 // indirect
 	k8s.io/cli-runtime v0.29.0 // indirect
@@ -107,4 +108,9 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace oras.land/oras-go => oras.land/oras-go v1.2.3
+replace (
+	github.com/docker/cli => github.com/docker/cli v20.10.21+incompatible
+	github.com/docker/docker => github.com/docker/docker v20.10.21+incompatible
+)
+
+replace oras.land/oras-go => oras.land/oras-go v1.2.2
