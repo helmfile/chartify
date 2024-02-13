@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/google/go-cmp v0.6.0
-	github.com/otiai10/copy v1.1.1
+	github.com/otiai10/copy v1.14.0
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
