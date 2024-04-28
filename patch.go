@@ -55,7 +55,7 @@ resources:
 	}
 
 	if len(u.JsonPatches) > 0 {
-		kustomizationYamlContent += `patchesJson6902:
+		kustomizationYamlContent += `patches:
 `
 		for i, f := range u.JsonPatches {
 			fileBytes, err := r.ReadFile(f)
