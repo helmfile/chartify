@@ -119,7 +119,7 @@ resources:
 	}
 
 	if len(u.StrategicMergePatches) > 0 {
-		kustomizationYamlContent += `patchesStrategicMerge:
+		kustomizationYamlContent += `patches:
 `
 		for i, f := range u.StrategicMergePatches {
 			bytes, err := r.ReadFile(f)
@@ -134,7 +134,7 @@ resources:
 			if err := r.WriteFile(abspath, bytes, 0644); err != nil {
 				return err
 			}
-			kustomizationYamlContent += `- ` + path + "\n"
+			kustomizationYamlContent += `- path: ` + path + "\n"
 		}
 	}
 
