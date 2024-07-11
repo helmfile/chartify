@@ -11,7 +11,7 @@ require (
 	github.com/otiai10/copy v1.14.0
 	github.com/stretchr/testify v1.9.0
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.15.2
+	helm.sh/helm/v3 v3.15.3
 )
 
 require (
