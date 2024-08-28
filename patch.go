@@ -54,88 +54,87 @@ resources:
 		kustomizationYamlContent += `- ` + f + "\n"
 	}
 
-	if len(u.JsonPatches) > 0 {
+	if len(u.StrategicMergePatches) > 0 || len(u.JsonPatches) > 0 {
 		kustomizationYamlContent += `patches:
 `
-		for i, f := range u.JsonPatches {
-			fileBytes, err := r.ReadFile(f)
-			if err != nil {
-				return err
-			}
+	}
 
-			type jsonPatch struct {
-				Target map[string]string        `yaml:"target"`
-				Patch  []map[string]interface{} `yaml:"patch"`
-				Path   string                   `yaml:"path"`
-			}
-			patch := jsonPatch{}
-			if err := yaml.Unmarshal(fileBytes, &patch); err != nil {
-				return err
-			}
+	// handle json patches
+	for i, f := range u.JsonPatches {
+		fileBytes, err := r.ReadFile(f)
+		if err != nil {
+			return err
+		}
 
+		type jsonPatch struct {
+			Target map[string]string        `yaml:"target"`
+			Patch  []map[string]interface{} `yaml:"patch"`
+			Path   string                   `yaml:"path"`
+		}
+		patch := jsonPatch{}
+		if err := yaml.Unmarshal(fileBytes, &patch); err != nil {
+			return err
+		}
+
+		buf := &bytes.Buffer{}
+		encoder := yaml.NewEncoder(buf)
+		encoder.SetIndent(2)
+		if err := encoder.Encode(map[string]interface{}{"target": patch.Target}); err != nil {
+			return err
+		}
+		targetBytes := buf.Bytes()
+
+		for i, line := range strings.Split(string(targetBytes), "\n") {
+			if i == 0 {
+				line = "- " + line
+			} else {
+				line = "  " + line
+			}
+			kustomizationYamlContent += line + "\n"
+		}
+
+		var path string
+		if patch.Path != "" {
+			path = patch.Path
+		} else if len(patch.Patch) > 0 {
 			buf := &bytes.Buffer{}
 			encoder := yaml.NewEncoder(buf)
 			encoder.SetIndent(2)
-			if err := encoder.Encode(map[string]interface{}{"target": patch.Target}); err != nil {
-				return err
-			}
-			targetBytes := buf.Bytes()
-
-			for i, line := range strings.Split(string(targetBytes), "\n") {
-				if i == 0 {
-					line = "- " + line
-				} else {
-					line = "  " + line
-				}
-				kustomizationYamlContent += line + "\n"
-			}
-
-			var path string
-			if patch.Path != "" {
-				path = patch.Path
-			} else if len(patch.Patch) > 0 {
-				buf := &bytes.Buffer{}
-				encoder := yaml.NewEncoder(buf)
-				encoder.SetIndent(2)
-				err := encoder.Encode(patch.Patch)
-				if err != nil {
-					return err
-				}
-				jsonPatchData := buf.Bytes()
-				path = filepath.Join("jsonpatches", fmt.Sprintf("patch.%d.yaml", i))
-				abspath := filepath.Join(tempDir, path)
-				if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
-					return err
-				}
-				r.Logf("%s:\n%s", path, jsonPatchData)
-				if err := r.WriteFile(abspath, jsonPatchData, 0644); err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("either \"path\" or \"patch\" must be set in %s", f)
-			}
-			kustomizationYamlContent += "  path: " + path + "\n"
-		}
-	}
-
-	if len(u.StrategicMergePatches) > 0 {
-		kustomizationYamlContent += `patches:
-`
-		for i, f := range u.StrategicMergePatches {
-			bytes, err := r.ReadFile(f)
+			err := encoder.Encode(patch.Patch)
 			if err != nil {
 				return err
 			}
-			path := filepath.Join("strategicmergepatches", fmt.Sprintf("patch.%d.yaml", i))
+			jsonPatchData := buf.Bytes()
+			path = filepath.Join("jsonpatches", fmt.Sprintf("patch.%d.yaml", i))
 			abspath := filepath.Join(tempDir, path)
 			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
 				return err
 			}
-			if err := r.WriteFile(abspath, bytes, 0644); err != nil {
+			r.Logf("%s:\n%s", path, jsonPatchData)
+			if err := r.WriteFile(abspath, jsonPatchData, 0644); err != nil {
 				return err
 			}
-			kustomizationYamlContent += `- path: ` + path + "\n"
+		} else {
+			return fmt.Errorf("either \"path\" or \"patch\" must be set in %s", f)
 		}
+		kustomizationYamlContent += "  path: " + path + "\n"
+	}
+
+	// handle strategic merge patches
+	for i, f := range u.StrategicMergePatches {
+		bytes, err := r.ReadFile(f)
+		if err != nil {
+			return err
+		}
+		path := filepath.Join("strategicmergepatches", fmt.Sprintf("patch.%d.yaml", i))
+		abspath := filepath.Join(tempDir, path)
+		if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
+			return err
+		}
+		if err := r.WriteFile(abspath, bytes, 0644); err != nil {
+			return err
+		}
+		kustomizationYamlContent += `- path: ` + path + "\n"
 	}
 
 	if len(u.Transformers) > 0 {
