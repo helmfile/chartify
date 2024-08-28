@@ -1,8 +1,6 @@
 module github.com/helmfile/chartify
 
-go 1.22.0
-
-toolchain go1.22.3
+go 1.22.6
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
