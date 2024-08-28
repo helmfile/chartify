@@ -24,7 +24,7 @@ jobs:
       run: |
         mkdir ./bin
 
-        HELM_VERSION=v3.11.1
+        HELM_VERSION=v3.15.4
         HELM_LOCATION="https://get.helm.sh"
         HELM_FILENAME="helm-${HELM_VERSION}-linux-amd64.tar.gz"
         curl -LO ${HELM_LOCATION}/${HELM_FILENAME} && \
