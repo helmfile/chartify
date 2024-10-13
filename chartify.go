@@ -694,9 +694,6 @@ func (r *Runner) copyToTempDir(path, tempDir, chartVersion string) (string, erro
 }
 
 func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (string, error) {
-	ociEnv := map[string]string{
-		"HELM_EXPERIMENTAL_OCI": "1",
-	}
 	helmVersionConstraint, _ := semver.NewConstraint(">= 3.7.0")
 	helmVersion, err := r.DetectHelmVersion()
 	if err != nil {
@@ -713,13 +710,13 @@ func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (str
 		helmPullCommand = []string{"chart", "pull", chart}
 	}
 
-	if _, err := r.run(ociEnv, r.helmBin(), helmPullCommand...); err != nil {
+	if _, err := r.run(map[string]string{}, r.helmBin(), helmPullCommand...); err != nil {
 		return "", err
 	}
 
 	if !helmVersionConstraint.Check(helmVersion) {
 		helmExportCommand := []string{"chart", "export", chart, "--destination", tempDir}
-		if _, err := r.run(ociEnv, r.helmBin(), helmExportCommand...); err != nil {
+		if _, err := r.run(map[string]string{}, r.helmBin(), helmExportCommand...); err != nil {
 			return "", err
 		}
 	}
