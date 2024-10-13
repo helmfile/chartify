@@ -177,7 +177,7 @@ resources:
 		kustomizeArgs = append(kustomizeArgs, f)
 	}
 
-	_, err := r.run(r.kustomizeBin(), kustomizeArgs...)
+	_, err := r.run(nil, r.kustomizeBin(), kustomizeArgs...)
 	if err != nil {
 		return err
 	}
