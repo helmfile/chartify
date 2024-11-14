@@ -55,6 +55,9 @@ type ReplaceWithRenderedOpts struct {
 	// templating in contrast to --validate
 	ApiVersions []string
 
+	// TemplateArgs to pass Flags to helm template
+	TemplateArgs string
+
 	// WorkaroundOutputDirIssue prevents chartify from using `helm template --output-dir` and let it use `helm template > some.yaml` instead to
 	// workaround the potential helm issue
 	// See https://github.com/roboll/helmfile/issues/1279#issuecomment-636839395
@@ -83,6 +86,10 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		additionalFlags += createFlagChain("kube-version", []string{o.KubeVersion})
 	}
 	additionalFlags += createFlagChain("api-versions", o.ApiVersions)
+
+	if o.TemplateArgs != "" {
+		additionalFlags += fmt.Sprintf(" %s", o.TemplateArgs)
+	}
 
 	r.Logf("options: %v", o)
 
