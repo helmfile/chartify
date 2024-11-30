@@ -113,6 +113,9 @@ type ChartifyOpts struct {
 	TemplateFuncs template.FuncMap
 	// TemplateData is the data available via {{ . }} within .gotmpl files
 	TemplateData interface{}
+
+	// TemplateArgs to pass Flags to helm template
+	TemplateArgs string
 }
 
 type ChartifyOption interface {
@@ -401,6 +404,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		Validate:     u.Validate,
 		KubeVersion:  u.KubeVersion,
 		ApiVersions:  u.ApiVersions,
+		TemplateArgs: u.TemplateArgs,
 
 		WorkaroundOutputDirIssue: u.WorkaroundOutputDirIssue,
 	}
