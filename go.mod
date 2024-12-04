@@ -2,6 +2,8 @@ module github.com/helmfile/chartify
 
 go 1.22.0
 
+toolchain go1.22.4
+
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
