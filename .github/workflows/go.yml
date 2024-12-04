@@ -17,14 +17,12 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: 'go.mod'
-        cache: true
-      id: go
 
     - name: Test
       run: |
         mkdir ./bin
 
-        HELM_VERSION=v3.16.2
+        HELM_VERSION=v3.16.3
         HELM_LOCATION="https://get.helm.sh"
         HELM_FILENAME="helm-${HELM_VERSION}-linux-amd64.tar.gz"
         curl -LO ${HELM_LOCATION}/${HELM_FILENAME} && \
