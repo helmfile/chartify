@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/otiai10/copy"
 	"helm.sh/helm/v3/pkg/registry"
 )
@@ -377,7 +378,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		} else {
 			// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
 			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-			_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
+			_, err := r.run(nil, r.helmBin(), "dependency", "up", tempDir)
 			if err != nil {
 				return "", err
 			}
@@ -387,7 +388,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		// and its dependencies. But ovbiously, previous `helm fetch` run doesn't download the adhoc dependencies we added
 		// after running `helm fetch`.
 		// We need to download adhoc dependencies on our own by running helmfile dependency up.
-		_, err := r.run(r.helmBin(), "dependency", "up", tempDir)
+		_, err := r.run(nil, r.helmBin(), "dependency", "up", tempDir)
 		if err != nil {
 			return "", err
 		}
@@ -530,7 +531,7 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 			repo := repoAndChart[0]
 			name = repoAndChart[1]
 
-			out, err := r.run(r.helmBin(), "repo", "list")
+			out, err := r.run(nil, r.helmBin(), "repo", "list")
 			if err != nil {
 				return nil, err
 			}
@@ -697,14 +698,31 @@ func (r *Runner) copyToTempDir(path, tempDir, chartVersion string) (string, erro
 }
 
 func (r *Runner) fetchAndUntarUnderDir(chart, tempDir, chartVersion string) (string, error) {
-	command := []string{"fetch", chart, "--untar", "-d", tempDir}
+	helmVersionConstraint, _ := semver.NewConstraint(">= 3.7.0")
+	helmVersion, err := r.DetectHelmVersion()
+	if err != nil {
+		return "", err
+	}
+	var helmPullCommand []string
+	if helmVersionConstraint.Check(helmVersion) {
+		helmPullCommand = []string{"pull", chart, "--untar", "-d", tempDir}
 
-	if chartVersion != "" {
-		command = append(command, "--version", chartVersion)
+		if chartVersion != "" {
+			helmPullCommand = append(helmPullCommand, "--version", chartVersion)
+		}
+	} else {
+		helmPullCommand = []string{"chart", "pull", chart}
 	}
 
-	if _, err := r.run(r.helmBin(), command...); err != nil {
+	if _, err := r.run(map[string]string{}, r.helmBin(), helmPullCommand...); err != nil {
 		return "", err
+	}
+
+	if !helmVersionConstraint.Check(helmVersion) {
+		helmExportCommand := []string{"chart", "export", chart, "--destination", tempDir}
+		if _, err := r.run(map[string]string{}, r.helmBin(), helmExportCommand...); err != nil {
+			return "", err
+		}
 	}
 
 	files, err := r.ReadDir(tempDir)

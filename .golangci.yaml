@@ -279,6 +279,7 @@ linters:
     - unused
     - whitespace
     - gci
+    # - depguard
     # - gocritic
     # - depguard
     # - godox

@@ -149,7 +149,6 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 		kustomizeArgs = append(kustomizeArgs, f)
 	}
-
 	f, err := r.kustomizeLoadRestrictionsNoneFlag()
 	if err != nil {
 		return "", err
@@ -175,7 +174,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 // kustomizeVersion returns the kustomize binary version.
 func (r *Runner) kustomizeVersion() (*semver.Version, error) {
-	versionInfo, err := r.run(r.kustomizeBin(), "version")
+	versionInfo, err := r.run(nil, r.kustomizeBin(), "version")
 	if err != nil {
 		return nil, err
 	}
