@@ -122,7 +122,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		command = fmt.Sprintf("%s template --debug=%v %s --name %s%s --output-dir %s", r.helmBin(), o.Debug, chartPath, name, additionalFlags, helmOutputDir)
 	}
 
-	stdout, err := r.run(command)
+	stdout, err := r.run(nil, command)
 	if err != nil {
 		return nil, err
 	}

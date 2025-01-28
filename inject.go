@@ -31,7 +31,7 @@ func (r *Runner) Inject(files []string, o InjectOpts) error {
 		for _, file := range files {
 			flags := strings.Replace(flagsTemplate, "FILE", file, 1)
 			command := fmt.Sprintf("%s %s", injector, flags)
-			stdout, err := r.runBytes("", command)
+			stdout, err := r.runBytes(nil, "", command)
 			if err != nil {
 				return err
 			}
@@ -45,7 +45,7 @@ func (r *Runner) Inject(files []string, o InjectOpts) error {
 		for _, file := range files {
 			cmd := strings.Replace(tmpl, "FILE", file, 1)
 
-			stdout, err := r.runBytes("", cmd)
+			stdout, err := r.runBytes(nil, "", cmd)
 			if err != nil {
 				return err
 			}
