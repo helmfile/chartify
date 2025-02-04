@@ -13,12 +13,14 @@ type Requirements struct {
 }
 
 type Dependency struct {
-	Name         string   `yaml:"name,omitempty"`
-	Repository   string   `yaml:"repository,omitempty"`
-	Condition    string   `yaml:"condition,omitempty"`
-	Alias        string   `yaml:"alias,omitempty"`
-	Version      string   `yaml:"version,omitempty"`
-	ImportValues []string `yaml:"import-values,omitempty"`
+	Name       string `yaml:"name,omitempty"`
+	Repository string `yaml:"repository,omitempty"`
+	Condition  string `yaml:"condition,omitempty"`
+	Alias      string `yaml:"alias,omitempty"`
+	Version    string `yaml:"version,omitempty"`
+	// ImportValues holds the mapping of source values to parent key to be imported. Each item can be a
+	// string or pair of child/parent sublist items.
+	ImportValues []interface{} `yaml:"import-values,omitempty"`
 }
 
 type ChartDependency struct {
