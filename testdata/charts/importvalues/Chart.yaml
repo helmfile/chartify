@@ -9,3 +9,5 @@ dependencies:
   version: 1.0.0
   import-values:
     - data
+    - child: data
+      parent: data

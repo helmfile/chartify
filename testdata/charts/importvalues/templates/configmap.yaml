@@ -5,3 +5,4 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   foo: {{ .Values.myval }}
+  bar: {{ .Values.data.myval }}

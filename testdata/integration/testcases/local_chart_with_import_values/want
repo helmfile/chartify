@@ -7,3 +7,4 @@ metadata:
   namespace: default
 data:
   foo: FOO
+  bar: BAR
