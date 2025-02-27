@@ -109,8 +109,6 @@ linters-settings:
   govet:
     # report about shadowed variables
     # report about shadowed variables
-    enable:
-      - fieldalignment
     disable:
       - shadow
     # settings per analyzer
