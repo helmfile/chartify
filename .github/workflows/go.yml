@@ -18,23 +18,18 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Install Helm
+      uses: azure/setup-helm@v4.3.0
+      with:
+        version: v3.17.2 # default is latest (stable)
+
+    - name: Install Kustomize
+      uses: syntaqx/setup-kustomize@v1
+      with:
+        kustomize-version: 5.6.0
+
     - name: Test
       run: |
-        mkdir ./bin
-
-        HELM_VERSION=v3.17.2
-        HELM_LOCATION="https://get.helm.sh"
-        HELM_FILENAME="helm-${HELM_VERSION}-linux-amd64.tar.gz"
-        curl -LO ${HELM_LOCATION}/${HELM_FILENAME} && \
-            echo Extracting ${HELM_FILENAME}... && \
-            tar zxvf ${HELM_FILENAME} && mv linux-amd64/helm ./bin/ && \
-            rm ${HELM_FILENAME} && rm -r linux-amd64
-
-        curl -Ls "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-        mv kustomize ./bin/
-
-        export PATH=$(pwd -P)/bin:$PATH
-
         helm repo add stable https://charts.helm.sh/stable
 
         CGO_ENABLED=0 go test ./...
