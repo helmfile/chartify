@@ -9,7 +9,7 @@ require (
 	github.com/otiai10/copy v1.14.1
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v3 v3.0.1
-	helm.sh/helm/v3 v3.17.2
+	helm.sh/helm/v3 v3.17.3
 )
 
 require (
