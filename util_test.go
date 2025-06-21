@@ -75,6 +75,24 @@ func TestFindSemVerInfo(t *testing.T) {
 			want:    "v5.0.0",
 			wantErr: false,
 		},
+		{
+			name:    "semver with extra info",
+			version: "v1.2.3-alpha+001",
+			want:    "v1.2.3-alpha+001",
+			wantErr: false,
+		},
+		{
+			name:    "semver must start with v",
+			version: "1.2.3",
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:    "helm version info with WARNING message",
+			version: "WARNING: both 'platformCommand' and 'command' are set in \"<HOMEDIR>/snap/code/194/.local/share/helm/plugins/helm-secrets/plugin.yaml\" (this will become an error in a future Helm version)\nv3.18.3+g6838ebc",
+			want:    "v3.18.3+g6838ebc",
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
