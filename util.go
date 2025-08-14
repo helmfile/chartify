@@ -51,7 +51,14 @@ func indent(text, indent string) string {
 }
 
 func FindSemVerInfo(version string) (string, error) {
-	v := regexp.MustCompile(semVerRegex).FindString(version)
+	if version == "" {
+		return "", fmt.Errorf("version cannot be empty")
+	}
+	processedVersion := strings.TrimSpace(version)
+	if !strings.HasPrefix(processedVersion, "v") {
+		processedVersion = fmt.Sprintf("v%s", processedVersion)
+	}
+	v := regexp.MustCompile(semVerRegex).FindString(processedVersion)
 
 	if v == "" {
 		return "", fmt.Errorf("unable to find semver info in %s", version)
