@@ -82,10 +82,10 @@ func TestFindSemVerInfo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "semver must start with v",
+			name:    "semver not start with v",
 			version: "1.2.3",
-			want:    "",
-			wantErr: true,
+			want:    "v1.2.3",
+			wantErr: false,
 		},
 		{
 			name:    "helm version info with WARNING message",
