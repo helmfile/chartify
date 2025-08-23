@@ -76,7 +76,8 @@ spec:
 		
 		// Verify the generated kustomization content
 		kustomizationStr := string(kustomizationContent)
-		require.Contains(t, kustomizationStr, "bases:")
+		require.Contains(t, kustomizationStr, "resources:")
+		require.NotContains(t, kustomizationStr, "bases:") // Should not use deprecated bases
 		require.Contains(t, kustomizationStr, "images:")
 		require.Contains(t, kustomizationStr, "namePrefix: prefix-")
 		require.Contains(t, kustomizationStr, "namespace: test-namespace")

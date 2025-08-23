@@ -69,7 +69,7 @@ type KustomizeBuildOption interface {
 // generateKustomizationFile creates a complete kustomization.yaml content
 func (r *Runner) generateKustomizationFile(relPath string, opts KustomizeOpts) ([]byte, error) {
 	kustomization := KustomizationFile{
-		Bases: []string{relPath},
+		Resources: []string{relPath}, // Use resources instead of deprecated bases
 	}
 
 	if len(opts.Images) > 0 {
