@@ -103,6 +103,44 @@ func (r *Runner) kustomizeBin() string {
 	return "kustomize"
 }
 
+// isKustomizeBinaryAvailable checks if the kustomize binary is available
+func (r *Runner) isKustomizeBinaryAvailable() bool {
+	_, _, err := r.captureBytes(r.kustomizeBin(), []string{"version"}, "", nil)
+	return err == nil
+}
+
+// kustomizeBuildCommand returns the appropriate command and args for kustomize build operation
+// Falls back to "kubectl kustomize" if standalone kustomize binary is not available
+func (r *Runner) kustomizeBuildCommand(buildArgs []string, targetDir string) (string, []string, error) {
+	// First check if the configured kustomize binary is available
+	if r.isKustomizeBinaryAvailable() {
+		return r.kustomizeBin(), append(buildArgs, targetDir), nil
+	}
+
+	// Fallback to kubectl kustomize
+	// kubectl kustomize requires different argument order: kubectl kustomize [flags] DIR
+	// We need to transform: kustomize [args] build [more-args] DIR
+	// Into: kubectl kustomize [more-args] DIR
+	
+	kubectlArgs := []string{"kustomize"}
+	
+	// Extract build-specific flags from buildArgs (everything except "build")
+	for i, arg := range buildArgs {
+		if arg == "build" {
+			// Add everything after "build" except the target dir (which gets added at the end)
+			kubectlArgs = append(kubectlArgs, buildArgs[i+1:]...)
+			break
+		}
+		// Add everything before "build"
+		kubectlArgs = append(kubectlArgs, arg)
+	}
+	
+	// Add target directory at the end
+	kubectlArgs = append(kubectlArgs, targetDir)
+	
+	return "kubectl", kubectlArgs, nil
+}
+
 func (r *Runner) run(envs map[string]string, cmd string, args ...string) (string, error) {
 	bytes, err := r.runBytes(envs, "", cmd, args...)
 

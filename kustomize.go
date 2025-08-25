@@ -17,6 +17,16 @@ type KustomizeOpts struct {
 	Namespace  string           `yaml:"namespace"`
 }
 
+// KustomizationFile represents the structure of a kustomization.yaml file
+type KustomizationFile struct {
+	Resources  []string         `yaml:"resources,omitempty"`
+	Bases      []string         `yaml:"bases,omitempty"`
+	Images     []KustomizeImage `yaml:"images,omitempty"`
+	NamePrefix string           `yaml:"namePrefix,omitempty"`
+	NameSuffix string           `yaml:"nameSuffix,omitempty"`
+	Namespace  string           `yaml:"namespace,omitempty"`
+}
+
 type KustomizeImage struct {
 	Name    string `yaml:"name"`
 	NewName string `yaml:"newName"`
@@ -54,6 +64,28 @@ func (o *KustomizeBuildOpts) SetKustomizeBuildOption(opts *KustomizeBuildOpts) e
 
 type KustomizeBuildOption interface {
 	SetKustomizeBuildOption(opts *KustomizeBuildOpts) error
+}
+
+// generateKustomizationFile creates a complete kustomization.yaml content
+func (r *Runner) generateKustomizationFile(relPath string, opts KustomizeOpts) ([]byte, error) {
+	kustomization := KustomizationFile{
+		Resources: []string{relPath}, // Use resources instead of deprecated bases
+	}
+
+	if len(opts.Images) > 0 {
+		kustomization.Images = opts.Images
+	}
+	if opts.NamePrefix != "" {
+		kustomization.NamePrefix = opts.NamePrefix
+	}
+	if opts.NameSuffix != "" {
+		kustomization.NameSuffix = opts.NameSuffix
+	}
+	if opts.Namespace != "" {
+		kustomization.Namespace = opts.Namespace
+	}
+
+	return yaml.Marshal(&kustomization)
 }
 
 func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...KustomizeBuildOption) (string, error) {
@@ -103,42 +135,18 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	if err != nil {
 		return "", err
 	}
-	baseFile := []byte("bases:\n- " + relPath + "\n")
+	
+	// Generate complete kustomization.yaml file directly instead of using edit commands
+	kustomizationContent, err := r.generateKustomizationFile(relPath, kustomizeOpts)
+	if err != nil {
+		return "", fmt.Errorf("generating kustomization.yaml: %v", err)
+	}
+	
 	kustomizationPath := path.Join(tempDir, "kustomization.yaml")
-	if err := r.WriteFile(kustomizationPath, baseFile, 0644); err != nil {
+	if err := r.WriteFile(kustomizationPath, kustomizationContent, 0644); err != nil {
 		return "", err
 	}
 
-	if len(kustomizeOpts.Images) > 0 {
-		args := []string{"edit", "set", "image"}
-		for _, image := range kustomizeOpts.Images {
-			args = append(args, image.String())
-		}
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), args...)
-		if err != nil {
-			return "", err
-		}
-	}
-	if kustomizeOpts.NamePrefix != "" {
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
-		if err != nil {
-			fmt.Println(err)
-			return "", err
-		}
-	}
-	if kustomizeOpts.NameSuffix != "" {
-		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
-		if err != nil {
-			return "", err
-		}
-	}
-	if kustomizeOpts.Namespace != "" {
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
-		if err != nil {
-			return "", err
-		}
-	}
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
 	kustomizeArgs := []string{"-o", outputFile, "build"}
 
@@ -159,7 +167,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		kustomizeArgs = append(kustomizeArgs, "--helm-command="+u.HelmBinary)
 	}
 
-	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
+	// Use kubectl kustomize fallback if standalone kustomize is not available
+	buildCmd, buildArgs, err := r.kustomizeBuildCommand(kustomizeArgs, tempDir)
+	if err != nil {
+		return "", err
+	}
+
+	out, err := r.runInDir(tempDir, buildCmd, buildArgs...)
 	if err != nil {
 		return "", err
 	}
@@ -173,7 +187,13 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 }
 
 // kustomizeVersion returns the kustomize binary version.
+// Returns nil if kustomize binary is not available (fallback scenario).
 func (r *Runner) kustomizeVersion() (*semver.Version, error) {
+	// Skip version detection if using a fallback scenario
+	if !r.isKustomizeBinaryAvailable() {
+		return nil, nil
+	}
+
 	versionInfo, err := r.run(nil, r.kustomizeBin(), "version")
 	if err != nil {
 		return nil, err
@@ -193,12 +213,14 @@ func (r *Runner) kustomizeVersion() (*semver.Version, error) {
 // kustomizeEnableAlphaPluginsFlag returns the kustomize binary alpha plugin argument.
 // Above Kustomize v3, it is `--enable-alpha-plugins`.
 // Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
+// Uses modern flag format when kustomize binary is not available (kubectl fallback).
 func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
 	version, err := r.kustomizeVersion()
 	if err != nil {
 		return "", err
 	}
-	if version.Major() > 3 {
+	// If version is nil (fallback scenario), use modern flag format
+	if version == nil || version.Major() > 3 {
 		return "--enable-alpha-plugins", nil
 	}
 	return "--enable_alpha_plugins", nil
@@ -208,12 +230,14 @@ func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
 // the root argument.
 // Above Kustomize v3, it is `--load-restrictor=LoadRestrictionsNone`.
 // Below Kustomize v3 (including v3), it is `--load_restrictor=none`.
+// Uses modern flag format when kustomize binary is not available (kubectl fallback).
 func (r *Runner) kustomizeLoadRestrictionsNoneFlag() (string, error) {
 	version, err := r.kustomizeVersion()
 	if err != nil {
 		return "", err
 	}
-	if version.Major() > 3 {
+	// If version is nil (fallback scenario), use modern flag format
+	if version == nil || version.Major() > 3 {
 		return "--load-restrictor=LoadRestrictionsNone", nil
 	}
 	return "--load_restrictor=none", nil
