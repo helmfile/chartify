@@ -18,6 +18,30 @@ var (
 	ContentDirs = []string{"templates", "charts", "crds"}
 )
 
+// PatchTarget specifies the target resource(s) for a patch
+type PatchTarget struct {
+	Group              string `yaml:"group,omitempty"`
+	Version            string `yaml:"version,omitempty"`
+	Kind               string `yaml:"kind,omitempty"`
+	Name               string `yaml:"name,omitempty"`
+	Namespace          string `yaml:"namespace,omitempty"`
+	LabelSelector      string `yaml:"labelSelector,omitempty"`
+	AnnotationSelector string `yaml:"annotationSelector,omitempty"`
+}
+
+// Patch represents a patch with optional target specification, similar to Kustomize's patches field
+type Patch struct {
+	// Path is the path to a patch file. Mutually exclusive with Patch.
+	Path string `yaml:"path,omitempty"`
+	
+	// Patch is the inline patch content. Mutually exclusive with Path.
+	Patch string `yaml:"patch,omitempty"`
+	
+	// Target specifies which resources the patch should be applied to.
+	// If not specified, the patch is applied based on the patch content's metadata.
+	Target *PatchTarget `yaml:"target,omitempty"`
+}
+
 type ChartifyOpts struct {
 	// ID is the ID of the temporary chart being generated.
 	// The ID is used in e.g. the directory name of the temporary local chart
@@ -63,6 +87,11 @@ type ChartifyOpts struct {
 
 	JsonPatches           []string
 	StrategicMergePatches []string
+
+	// Patches is a list of patches and their associated targets, similar to Kustomize's patches field.
+	// Each patch can be applied to multiple objects and auto-detects whether the patch is a Strategic Merge Patch or JSON Patch.
+	// Supports both inline patches and file-based patches.
+	Patches []Patch
 
 	// Transformers is the list of YAML files each defines a Kustomize transformer
 	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/configureBuiltinPlugin.md#configuring-the-builtin-plugins-instead for more information.
@@ -416,7 +445,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	var (
 		needsNamespaceOverride = overrideNamespace != ""
-		needsKustomizeBuild    = len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Transformers) > 0
+		needsKustomizeBuild    = len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Patches) > 0 || len(u.Transformers) > 0
 		needsInjections        = len(u.Injectors) > 0 || len(u.Injects) > 0
 	)
 
@@ -449,6 +478,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,
+			Patches:               u.Patches,
 			Transformers:          u.Transformers,
 			EnableAlphaPlugins:    u.EnableKustomizeAlphaPlugins,
 		}
