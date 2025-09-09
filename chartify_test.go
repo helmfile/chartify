@@ -258,3 +258,77 @@ spec:
 		}
 	})
 }
+
+func TestPatchIntegration(t *testing.T) {
+	helm := "helm"
+	if h := os.Getenv("HELM_BIN"); h != "" {
+		helm = h
+	}
+
+	setupHelmConfig(t)
+
+	runner := New(UseHelm3(true), HelmBin(helm))
+
+	t.Run("strategic merge patch file", func(t *testing.T) {
+		// Test that a strategic merge patch file works
+		opts := ChartifyOpts{
+			Patches: []Patch{
+				{
+					Path: "./testdata/patches/strategic-merge.yaml",
+				},
+			},
+		}
+
+		_, err := runner.Chartify("myapp", "./testdata/simple_manifest", WithChartifyOpts(&opts))
+		require.NoError(t, err)
+	})
+
+	t.Run("inline strategic merge patch", func(t *testing.T) {
+		// Test that an inline strategic merge patch works
+		opts := ChartifyOpts{
+			Patches: []Patch{
+				{
+					Patch: `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 5
+  template:
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:v4.0.0`,
+				},
+			},
+		}
+
+		resultDir, err := runner.Chartify("myapp", "./testdata/simple_manifest", WithChartifyOpts(&opts))
+		require.NoError(t, err)
+		require.DirExists(t, resultDir)
+	})
+
+	t.Run("inline json patch with target", func(t *testing.T) {
+		// Test that an inline JSON patch with target works
+		opts := ChartifyOpts{
+			Patches: []Patch{
+				{
+					Patch: `- op: replace
+  path: /spec/replicas
+  value: 7
+- op: replace
+  path: /spec/template/spec/containers/0/image
+  value: myapp:v5.0.0`,
+					Target: &PatchTarget{
+						Kind: "Deployment",
+						Name: "myapp",
+					},
+				},
+			},
+		}
+
+		resultDir, err := runner.Chartify("myapp", "./testdata/simple_manifest", WithChartifyOpts(&opts))
+		require.NoError(t, err)
+		require.DirExists(t, resultDir)
+	})
+}
