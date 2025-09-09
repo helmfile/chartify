@@ -3,3 +3,7 @@
 
 # testdata
 testdata/kustomize_with_helm_charts/charts/
+
+# Build artifacts
+chartify
+chartreposerver
