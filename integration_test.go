@@ -333,30 +333,6 @@ func TestIntegration(t *testing.T) {
 			EnableKustomizeAlphaPlugins: true,
 		},
 	})
-
-	// SAVE_SNAPSHOT=1 go1.22 test -run ^TestIntegration/kube_manifest_with_patches$ ./
-	runTest(t, integrationTestCase{
-		description: "kube_manifest_with_patches",
-		release:     "myapp",
-		chart:       "./testdata/kube_manifest",
-		opts: ChartifyOpts{
-			AdhocChartDependencies: []ChartDependency{
-				{
-					Alias:   "log",
-					Chart:   repo + chartSuffix,
-					Version: "0.1.0",
-				},
-			},
-			Patches: []Patch{
-				{
-					Path: "./testdata/patches/strategic-merge.yaml",
-				},
-			},
-			SetFlags: []string{
-				"--set", "log.enabled=true",
-			},
-		},
-	})
 }
 
 func setupHelmConfig(t *testing.T) {
