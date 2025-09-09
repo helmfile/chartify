@@ -33,6 +33,7 @@ func main() {
 		Namespace:                   "",
 		ChartVersion:                "",
 		EnableKustomizeAlphaPlugins: false,
+		KustomizeBuildArgs:          nil,
 		Injectors:                   nil,
 		Injects:                     nil,
 		AdhocChartDependencies:      nil,
@@ -43,12 +44,14 @@ func main() {
 	}
 
 	deps := stringSlice{}
+	kustomizeBuildArgs := stringSlice{}
 
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
 	flag.Var(&deps, "d", "one or more \"alias=chart:version\" to add adhoc chart dependencies")
 	flag.BoolVar(&opts.IncludeCRDs, "include-crds", false, "Whether to render CRDs contained in the chart and include the results into the output")
 	flag.StringVar(&strategicMergePatch, "strategic-merge-patch", "", "Path to a kustomize strategic merge patch file")
+	flag.Var(&kustomizeBuildArgs, "kustomize-build-arg", "Extra arguments to pass to 'kustomize build' command (e.g. --enable-exec). Can be specified multiple times.")
 
 	flag.Parse()
 
@@ -61,6 +64,7 @@ func main() {
 	}
 
 	opts.DeprecatedAdhocChartDependencies = deps
+	opts.KustomizeBuildArgs = kustomizeBuildArgs
 
 	c := chartify.New(chartify.UseHelm3(true), chartify.HelmBin("helm"))
 
