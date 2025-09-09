@@ -1,5 +1,9 @@
 *~
 .idea
 
+# Built binaries
+chartify
+chartreposerver
+
 # testdata
 testdata/kustomize_with_helm_charts/charts/
