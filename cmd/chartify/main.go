@@ -38,17 +38,20 @@ func main() {
 		AdhocChartDependencies:      nil,
 		JsonPatches:                 nil,
 		StrategicMergePatches:       nil,
+		Patches:                     nil,
 		WorkaroundOutputDirIssue:    false,
 		IncludeCRDs:                 false,
 	}
 
 	deps := stringSlice{}
+	patches := stringSlice{}
 
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
 	flag.Var(&deps, "d", "one or more \"alias=chart:version\" to add adhoc chart dependencies")
 	flag.BoolVar(&opts.IncludeCRDs, "include-crds", false, "Whether to render CRDs contained in the chart and include the results into the output")
 	flag.StringVar(&strategicMergePatch, "strategic-merge-patch", "", "Path to a kustomize strategic merge patch file")
+	flag.Var(&patches, "patch", "Path to a patch file (can be strategic merge patch or JSON patch, auto-detected)")
 
 	flag.Parse()
 
@@ -58,6 +61,13 @@ func main() {
 
 	if strategicMergePatch != "" {
 		opts.StrategicMergePatches = append(opts.StrategicMergePatches, strategicMergePatch)
+	}
+
+	// Convert patch file paths to Patch structs
+	for _, patchFile := range patches {
+		opts.Patches = append(opts.Patches, chartify.Patch{
+			Path: patchFile,
+		})
 	}
 
 	opts.DeprecatedAdhocChartDependencies = deps

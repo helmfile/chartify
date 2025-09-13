@@ -16,6 +16,9 @@ type PatchOpts struct {
 
 	StrategicMergePatches []string
 
+	// Patches is a list of patches and their associated targets, similar to Kustomize's patches field
+	Patches []Patch
+
 	Transformers []string
 
 	// Kustomize alpha plugin enable flag.
@@ -54,7 +57,7 @@ resources:
 		kustomizationYamlContent += `- ` + f + "\n"
 	}
 
-	if len(u.StrategicMergePatches) > 0 || len(u.JsonPatches) > 0 {
+	if len(u.StrategicMergePatches) > 0 || len(u.JsonPatches) > 0 || len(u.Patches) > 0 {
 		kustomizationYamlContent += `patches:
 `
 	}
@@ -118,6 +121,124 @@ resources:
 			return fmt.Errorf("either \"path\" or \"patch\" must be set in %s", f)
 		}
 		kustomizationYamlContent += "  path: " + path + "\n"
+	}
+
+	// handle new unified patches field
+	for i, patch := range u.Patches {
+		var patchContent []byte
+		var err error
+
+		// Get patch content from either Path or Patch field
+		if patch.Path != "" && patch.Patch != "" {
+			return fmt.Errorf("patch %d: both \"path\" and \"patch\" are set, only one is allowed", i)
+		}
+		if patch.Path == "" && patch.Patch == "" {
+			return fmt.Errorf("patch %d: either \"path\" or \"patch\" must be set", i)
+		}
+
+		if patch.Path != "" {
+			patchContent, err = r.ReadFile(patch.Path)
+			if err != nil {
+				return fmt.Errorf("reading patch file %s: %w", patch.Path, err)
+			}
+		} else {
+			patchContent = []byte(patch.Patch)
+		}
+
+		// Determine if this is a JSON patch or strategic merge patch by trying to parse as JSON patch operations
+		isJSONPatch := false
+		var jsonOps []map[string]interface{}
+		if err := yaml.Unmarshal(patchContent, &jsonOps); err == nil {
+			// Check if all elements have the required JSON patch fields (op, path)
+			isJSONPatch = true
+			for _, op := range jsonOps {
+				if _, hasOp := op["op"]; !hasOp {
+					isJSONPatch = false
+					break
+				}
+				if _, hasPath := op["path"]; !hasPath {
+					isJSONPatch = false
+					break
+				}
+			}
+		}
+
+		if isJSONPatch {
+			// Handle as JSON patch
+			if patch.Target == nil {
+				return fmt.Errorf("patch %d: JSON patches require a target specification", i)
+			}
+
+			// Add target specification
+			buf := &bytes.Buffer{}
+			encoder := yaml.NewEncoder(buf)
+			encoder.SetIndent(2)
+			if err := encoder.Encode(map[string]interface{}{"target": patch.Target}); err != nil {
+				return err
+			}
+			targetBytes := buf.Bytes()
+
+			for j, line := range strings.Split(string(targetBytes), "\n") {
+				if j == 0 {
+					line = "- " + line
+				} else {
+					line = "  " + line
+				}
+				kustomizationYamlContent += line + "\n"
+			}
+
+			// Write patch content to file
+			path := filepath.Join("patches", fmt.Sprintf("patch.%d.json.yaml", i))
+			abspath := filepath.Join(tempDir, path)
+			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
+				return err
+			}
+			r.Logf("%s:\n%s", path, patchContent)
+			if err := r.WriteFile(abspath, patchContent, 0644); err != nil {
+				return err
+			}
+			kustomizationYamlContent += "  path: " + path + "\n"
+		} else {
+			// Handle as strategic merge patch
+			patchEntry := "- "
+			
+			// Add target specification if provided
+			if patch.Target != nil {
+				buf := &bytes.Buffer{}
+				encoder := yaml.NewEncoder(buf)
+				encoder.SetIndent(2)
+				if err := encoder.Encode(map[string]interface{}{"target": patch.Target}); err != nil {
+					return err
+				}
+				targetBytes := buf.Bytes()
+
+				for j, line := range strings.Split(string(targetBytes), "\n") {
+					if j == 0 {
+						line = patchEntry + line
+						patchEntry = "  "
+					} else {
+						line = "  " + line
+					}
+					kustomizationYamlContent += line + "\n"
+				}
+			}
+
+			// Write patch content to file
+			path := filepath.Join("patches", fmt.Sprintf("patch.%d.strategic.yaml", i))
+			abspath := filepath.Join(tempDir, path)
+			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
+				return err
+			}
+			if err := r.WriteFile(abspath, patchContent, 0644); err != nil {
+				return err
+			}
+			
+			if patch.Target != nil {
+				kustomizationYamlContent += "  path: " + path + "\n"
+			} else {
+				kustomizationYamlContent += patchEntry + "path: " + path + "\n"
+			}
+		}
 	}
 
 	// handle strategic merge patches
@@ -313,7 +434,7 @@ resources:
 		return fmt.Errorf("writing %s: %w", crdsFile, err)
 	}
 
-	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "kustomization.yaml", renderedFileName)
+	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "patches", "jsonpatches", "kustomization.yaml", renderedFileName)
 
 	for _, f := range removedPathList {
 		d := filepath.Join(tempDir, f)
