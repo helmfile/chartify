@@ -166,3 +166,34 @@ func TestUseHelmChartsInKustomize(t *testing.T) {
 		})
 	}
 }
+
+func TestKubectlKustomizeFallback(t *testing.T) {
+	// Test the fallback functionality when kustomize binary is not available
+	// Use a non-existent binary name to simulate missing kustomize
+	r := New(UseHelm3(true), KustomizeBin("non-existent-kustomize-binary"))
+	
+	// Test that isKustomizeBinaryAvailable returns false for non-existent binary
+	available := r.isKustomizeBinaryAvailable()
+	require.False(t, available, "non-existent binary should not be available")
+	
+	// Test the kustomizeBuildCommand function returns kubectl command for fallback
+	buildArgs := []string{"-o", "/tmp/output.yaml", "build", "--enable-helm"}
+	targetDir := "/tmp/testdir"
+	
+	cmd, args, err := r.kustomizeBuildCommand(buildArgs, targetDir)
+	require.NoError(t, err)
+	require.Equal(t, "kubectl", cmd)
+	require.Contains(t, args, "kustomize")
+	require.Contains(t, args, targetDir)
+	require.Contains(t, args, "--enable-helm")
+	
+	// Test with a real kustomize binary (should not fallback)
+	r2 := New(UseHelm3(true), KustomizeBin("kustomize"))
+	available2 := r2.isKustomizeBinaryAvailable()
+	require.True(t, available2, "kustomize binary should be available")
+	
+	cmd2, args2, err2 := r2.kustomizeBuildCommand(buildArgs, targetDir)
+	require.NoError(t, err2)
+	require.Equal(t, "kustomize", cmd2)
+	require.Equal(t, append(buildArgs, targetDir), args2)
+}
