@@ -22,6 +22,10 @@ type PatchOpts struct {
 	// Above Kustomize v3, it is `--enable-alpha-plugins`.
 	// Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
 	EnableAlphaPlugins bool
+
+	// ExtraArgs are extra arguments to pass to `kustomize build` command
+	// For example, ["--enable-exec"] for plugins like ksops
+	ExtraArgs []string
 }
 
 func (o *PatchOpts) SetPatchOption(opts *PatchOpts) error {
@@ -175,6 +179,11 @@ resources:
 			return err
 		}
 		kustomizeArgs = append(kustomizeArgs, f)
+	}
+
+	// Add any extra arguments provided by the user
+	if len(u.ExtraArgs) > 0 {
+		kustomizeArgs = append(kustomizeArgs, u.ExtraArgs...)
 	}
 
 	_, err := r.run(nil, r.kustomizeBin(), kustomizeArgs...)
