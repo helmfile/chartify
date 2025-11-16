@@ -118,7 +118,13 @@ func TestUseHelmChartsInKustomize(t *testing.T) {
 	repo := "myrepo"
 	startServer(t, repo)
 
-	r := New(UseHelm3(true), HelmBin(helm))
+	r := New(HelmBin(helm))
+
+	// Skip this test for Helm 4 as Kustomize 5.8.0 doesn't support Helm 4 yet
+	// Kustomize tries to run 'helm version -c --short' which is not supported in Helm 4
+	if r.IsHelm4() {
+		t.Skip("Skipping test: Kustomize 5.8.0 does not support Helm 4 (uses unsupported 'helm version -c' flag)")
+	}
 
 	tests := []struct {
 		name string

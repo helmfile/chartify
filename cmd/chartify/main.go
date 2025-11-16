@@ -62,7 +62,7 @@ func main() {
 
 	opts.DeprecatedAdhocChartDependencies = deps
 
-	c := chartify.New(chartify.UseHelm3(true), chartify.HelmBin("helm"))
+	c := chartify.New(chartify.HelmBin("helm"))
 
 	args := flag.Args()
 

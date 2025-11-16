@@ -326,7 +326,7 @@ resources:
 	if len(crds) > 0 {
 		var crdsDir string
 
-		if r.isHelm3 {
+		if r.IsHelm3() || r.IsHelm4() {
 			crdsDir = filepath.Join(tempDir, "crds")
 		} else {
 			crdsDir = filepath.Join(tempDir, "templates")
