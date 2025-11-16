@@ -6,8 +6,13 @@ on:
     branches: [main, master]
 jobs:
   build:
-    name: test
+    name: test (helm ${{ matrix.helm-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        helm-version:
+          - v3.19.2
+          - v4.0.0
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v5
@@ -20,15 +25,16 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4.3.1
         with:
-          version: v3.19.0 # default is latest (stable)
+          version: ${{ matrix.helm-version }}
 
       - name: Install Kustomize
         uses: syntaqx/setup-kustomize@v1
         with:
-          kustomize-version: 5.6.0
+          kustomize-version: 5.8.0
 
       - name: Test
         run: |
+          helm version
           helm repo add stable https://charts.helm.sh/stable
 
           CGO_ENABLED=0 go test ./...

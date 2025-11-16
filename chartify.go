@@ -11,7 +11,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/otiai10/copy"
-	"helm.sh/helm/v3/pkg/registry"
+	registryv3 "helm.sh/helm/v3/pkg/registry"
+	registryv4 "helm.sh/helm/v4/pkg/registry"
 )
 
 var (
@@ -83,6 +84,10 @@ type ChartifyOpts struct {
 	// Useful for cases when the chart has a broken dependencies definition like seen in
 	// https://github.com/roboll/helmfile/issues/1547
 	SkipDeps bool
+
+	// OCIPlainHTTP uses plain HTTP for OCI registries when running helm dependency commands.
+	// Required for local/insecure OCI registries in Helm 4.
+	OCIPlainHTTP bool
 
 	// IncludeCRDs is a Helm 3 only option. When it is true, chartify passes a `--include-crds` flag
 	// to helm-template.
@@ -378,7 +383,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		} else {
 			// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
 			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-			_, err := r.run(nil, r.helmBin(), "dependency", "up", tempDir)
+			depArgs := []string{"dependency", "up", tempDir}
+			// Helm 4 requires --plain-http for HTTP-only OCI registries
+			if u.OCIPlainHTTP && r.IsHelm4() {
+				depArgs = append(depArgs, "--plain-http")
+			}
+			_, err := r.run(nil, r.helmBin(), depArgs...)
 			if err != nil {
 				return "", err
 			}
@@ -388,7 +398,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		// and its dependencies. But ovbiously, previous `helm fetch` run doesn't download the adhoc dependencies we added
 		// after running `helm fetch`.
 		// We need to download adhoc dependencies on our own by running helmfile dependency up.
-		_, err := r.run(nil, r.helmBin(), "dependency", "up", tempDir)
+		depArgs := []string{"dependency", "up", tempDir}
+		// Helm 4 requires --plain-http for HTTP-only OCI registries
+		if u.OCIPlainHTTP && r.IsHelm4() {
+			depArgs = append(depArgs, "--plain-http")
+		}
+		_, err := r.run(nil, r.helmBin(), depArgs...)
 		if err != nil {
 			return "", err
 		}
@@ -521,7 +536,7 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 		if isLocalChart {
 			name = filepath.Base(d.Chart)
 			repoUrl = fmt.Sprintf("file://%s", d.Chart)
-		} else if registry.IsOCI(d.Chart) {
+		} else if (r.IsHelm3() && registryv3.IsOCI(d.Chart)) || (r.IsHelm4() && registryv4.IsOCI(d.Chart)) {
 			name = filepath.Base(d.Chart)
 			// Trim trailing slash to avoid invalid repository error due to duplicate slash in oci registry url
 			// while running helm dependency up

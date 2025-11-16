@@ -101,7 +101,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	var command string
 
 	writtenFiles := map[string]bool{}
-	if r.isHelm3 {
+	if r.IsHelm3() || r.IsHelm4() {
 		args := []string{
 			fmt.Sprintf("--debug=%v", o.Debug),
 			fmt.Sprintf("--output-dir=%s", helmOutputDir),
@@ -218,7 +218,7 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	// Note that this is the fix for adhoc chart dependencies.
 	// The standard chart dependencies that are declared in the original Chart.yaml or requirements.yaml,
 	// should have been downloaded by `helm fetch` that run in an even earlier phase of chartify.
-	if r.IsHelm3() {
+	if r.IsHelm3() || r.IsHelm4() {
 		type ChartMeta struct {
 			Dependencies []Dependency           `yaml:"dependencies,omitempty"`
 			Data         map[string]interface{} `yaml:",inline"`

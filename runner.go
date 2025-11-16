@@ -22,6 +22,7 @@ type Runner struct {
 	KustomizeBinary string
 
 	isHelm3 bool
+	isHelm4 bool
 
 	RunCommand RunCommandFunc
 
@@ -49,6 +50,13 @@ func HelmBin(b string) Option {
 func UseHelm3(u bool) Option {
 	return func(r *Runner) error {
 		r.isHelm3 = u
+		return nil
+	}
+}
+
+func UseHelm4(u bool) Option {
+	return func(r *Runner) error {
+		r.isHelm4 = u
 		return nil
 	}
 }
@@ -180,13 +188,32 @@ func (r *Runner) IsHelm3() bool {
 	return sv.Major() == 3
 }
 
+func (r *Runner) IsHelm4() bool {
+	if r.isHelm4 {
+		return true
+	}
+
+	// Support explicit opt-in via environment variable
+	if os.Getenv("HELM_X_HELM4") != "" {
+		return true
+	}
+
+	// Autodetect from `helm version`
+	sv, err := r.DetectHelmVersion()
+	if err != nil {
+		panic(err)
+	}
+
+	return sv.Major() == 4
+}
+
 // DetectHelmVersion detects the version of Helm installed on the system.
 // It runs the `helm version` command and parses the output to extract the client version.
 // Returns the detected Helm version as a semver.Version object.
 // If an error occurs during the detection process, it returns an error.
 func (r *Runner) DetectHelmVersion() (*semver.Version, error) {
-	// Autodetect from `helm version`
-	out, err := r.run(nil, r.helmBin(), "version", "--client", "--short")
+	// Autodetect from `helm version` using template that works for both Helm 3 and 4
+	out, err := r.run(nil, r.helmBin(), "version", "--template={{.Version}}+g{{.GitCommit}}")
 	if err != nil {
 		return nil, fmt.Errorf("error determining helm version: %w", err)
 	}

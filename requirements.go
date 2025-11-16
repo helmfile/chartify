@@ -59,7 +59,7 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 
 	var all []Dependency
 
-	if r.IsHelm3() {
+	if r.IsHelm3() || r.IsHelm4() {
 		type ChartMeta struct {
 			Dependencies []Dependency           `yaml:"dependencies,omitempty"`
 			Data         map[string]interface{} `yaml:",inline"`

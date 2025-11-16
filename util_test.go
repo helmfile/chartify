@@ -89,8 +89,8 @@ func TestFindSemVerInfo(t *testing.T) {
 		},
 		{
 			name:    "helm version info with WARNING message",
-			version: "WARNING: both 'platformCommand' and 'command' are set in \"<HOMEDIR>/snap/code/194/.local/share/helm/plugins/helm-secrets/plugin.yaml\" (this will become an error in a future Helm version)\nv3.18.3+g6838ebc",
-			want:    "v3.18.3+g6838ebc",
+			version: "WARNING: both 'platformCommand' and 'command' are set in \"<HOMEDIR>/snap/code/194/.local/share/helm/plugins/helm-secrets/plugin.yaml\" (this will become an error in a future Helm version)\nv4.0.0+g99cd196",
+			want:    "v4.0.0+g99cd196",
 			wantErr: false,
 		},
 	}
