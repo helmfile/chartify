@@ -45,6 +45,22 @@ func (r *Runner) Patch(tempDir string, generatedManifestFiles []string, opts ...
 
 	r.Logf("patching files: %v", generatedManifestFiles)
 
+	// Detect if CRDs originally came from templates/ directory
+	// This is important for preserving the chart author's intent
+	// Issue: https://github.com/helmfile/helmfile/issues/2291
+	crdsFromTemplates := false
+	for _, f := range generatedManifestFiles {
+		relPath := strings.Replace(f, tempDir+string(filepath.Separator), "", 1)
+		// Normalize path separators for cross-platform compatibility
+		relPath = filepath.ToSlash(relPath)
+		// Check if any file is in templates/crds/ subdirectory
+		if strings.HasPrefix(relPath, "templates/crds/") {
+			crdsFromTemplates = true
+			r.Logf("Detected CRDs in templates/ directory - will preserve location")
+			break
+		}
+	}
+
 	kustomizationYamlContent := `kind: ""
 apiversion: ""
 resources:
@@ -67,9 +83,9 @@ resources:
 		}
 
 		type jsonPatch struct {
-			Target map[string]string        `yaml:"target"`
-			Patch  []map[string]interface{} `yaml:"patch"`
-			Path   string                   `yaml:"path"`
+			Target map[string]string   `yaml:"target"`
+			Patch  []map[string]any    `yaml:"patch"`
+			Path   string              `yaml:"path"`
 		}
 		patch := jsonPatch{}
 		if err := yaml.Unmarshal(fileBytes, &patch); err != nil {
@@ -79,7 +95,7 @@ resources:
 		buf := &bytes.Buffer{}
 		encoder := yaml.NewEncoder(buf)
 		encoder.SetIndent(2)
-		if err := encoder.Encode(map[string]interface{}{"target": patch.Target}); err != nil {
+		if err := encoder.Encode(map[string]any{"target": patch.Target}); err != nil {
 			return err
 		}
 		targetBytes := buf.Bytes()
@@ -326,9 +342,28 @@ resources:
 	if len(crds) > 0 {
 		var crdsDir string
 
-		if r.IsHelm3() || r.IsHelm4() {
+		// Preserve original CRD location to maintain chart author's intent
+		// Issue: https://github.com/helmfile/helmfile/issues/2291
+		//
+		// If CRDs originally came from templates/ directory (e.g., templates/crds/),
+		// they were likely placed there intentionally for:
+		// - Conditional rendering with {{- if .Values.crds.install }}
+		// - Using template features like .Release.Namespace
+		// - Requiring CRD updates during helm upgrade
+		//
+		// Moving them to the special crds/ directory changes Helm's behavior:
+		// - templates/crds/: Regular resources, updated on upgrade, deleted on uninstall
+		// - crds/: Install-only, immutable on upgrade, not deleted on uninstall
+		if crdsFromTemplates {
+			// Preserve original location in templates/crds/
+			crdsDir = filepath.Join(tempDir, "templates", "crds")
+			r.Logf("Preserving CRDs in templates/crds/ (original location)")
+		} else if r.IsHelm3() || r.IsHelm4() {
+			// Use standard Helm 3/4 crds/ directory for CRDs from root crds/
 			crdsDir = filepath.Join(tempDir, "crds")
+			r.Logf("Placing CRDs in crds/ (standard Helm 3/4 location)")
 		} else {
+			// Helm 2 compatibility
 			crdsDir = filepath.Join(tempDir, "templates")
 		}
 
