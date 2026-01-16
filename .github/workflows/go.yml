@@ -11,8 +11,8 @@ jobs:
     strategy:
       matrix:
         helm-version:
-          - v3.19.2
-          - v4.0.0
+          - v3.19.5
+          - v4.0.5
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v6
