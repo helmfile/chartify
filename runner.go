@@ -108,6 +108,9 @@ func (r *Runner) kustomizeBin() string {
 	if r.KustomizeBinary != "" {
 		return r.KustomizeBinary
 	}
+	if env := os.Getenv("KUSTOMIZE_BIN"); env != "" {
+		return env
+	}
 	if _, err := exec.LookPath("kustomize"); err == nil {
 		return "kustomize"
 	}
