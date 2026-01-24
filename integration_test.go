@@ -29,6 +29,28 @@ func getHelmVersion(t *testing.T, helmBinary string) string {
 	return strings.TrimSpace(string(out))
 }
 
+func getSnapshotFilePath(t *testing.T, description, helmBinary string) string {
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("failed to get helm version: %v", err)
+		return filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(description, " ", "_"), "want")
+	}
+	helmVersion := strings.TrimSpace(string(out))
+
+	snapshotBase := strings.ReplaceAll(description, " ", "_")
+	if snapshotBase != "kube_version_and_api_versions" {
+		return filepath.Join("testdata", "integration", "testcases", snapshotBase, "want")
+	}
+
+	helmMajor := strings.TrimPrefix(helmVersion, "v")
+	if len(helmMajor) > 0 && helmMajor[0] == '4' {
+		return filepath.Join("testdata", "integration", "testcases", snapshotBase+"_helm4", "want")
+	}
+	return filepath.Join("testdata", "integration", "testcases", snapshotBase+"_helm3", "want")
+}
+
 func TestIntegration(t *testing.T) {
 	if h := os.Getenv("HELM_BIN"); h != "" {
 		helm = h
@@ -414,17 +436,7 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	got := string(out)
 
 	// Determine snapshot file path based on test case and Helm version
-	var snapshotFile string
-	if tc.description == "kube_version_and_api_versions" {
-		helmVersion := getHelmVersion(t, helm)
-		if strings.HasPrefix(helmVersion, "v4") {
-			snapshotFile = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm4", "want")
-		} else {
-			snapshotFile = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm3", "want")
-		}
-	} else {
-		snapshotFile = filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
-	}
+	snapshotFile := getSnapshotFilePath(t, tc.description, helm)
 
 	// You can update the snapshot by running e.g.:
 	//   SAVE_SNAPSHOT=1 go1.25 test -run ^TestFramework$ ./
