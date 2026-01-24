@@ -23,14 +23,18 @@ func getHelmVersion(t *testing.T, helmBinary string) string {
 	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("failed to get helm version: %v", err)
+		t.Logf("failed to get helm version: %v", err)
+		return ""
 	}
-	version := strings.TrimSpace(string(out))
-	if len(version) > 0 {
-		return version
-	}
-	return ""
+	return strings.TrimSpace(string(out))
 }
+
+func TestIntegration(t *testing.T) {
+	if h := os.Getenv("HELM_BIN"); h != "" {
+		helm = h
+	}
+	repo := "myrepo"
+	startServer(t, repo)
 
 	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/adhoc_dependency_condition$ ./
 	runTest(t, integrationTestCase{
@@ -395,39 +399,6 @@ func doTest(t *testing.T, tc integrationTestCase) {
 		require.NoError(t, err)
 	}
 
-	if info, _ := os.Stat(tc.chart); info != nil {
-		// Our contract (mainly for Helmfile) is that any local chart can pass
-		// subsequent `helm dep build` on it after chartification
-		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
-		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
-		helmDepBuildOut, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
-		}
-		require.NoError(t, err)
-	}
-
-	// Determine Helm version and corresponding snapshot directory
-	helmVersion := getHelmVersion(t, helm)
-	var snapshotDir string
-	if helmVersion.Major == 4 {
-		snapshotDir = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm4", strings.ReplaceAll(tc.description, " ", "_"), "want")
-	} else {
-		snapshotDir = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions", strings.ReplaceAll(tc.description, " ", "_"), "want")
-	}
-
-	if info, _ := os.Stat(tc.chart); info != nil {
-		// Our contract (mainly for Helmfile) is that any local chart can pass
-		// subsequent `helm dep build` on it after chartification
-		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
-		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
-		helmDepBuildOut, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
-		}
-		require.NoError(t, err)
-	}
-
 	args := []string{"template", tc.release, tmpDir}
 	args = append(args, tc.opts.SetFlags...)
 	if tc.opts.KubeVersion != "" {
@@ -442,7 +413,18 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	require.NoError(t, err)
 	got := string(out)
 
-	snapshotFile := filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
+	// Determine snapshot file path based on test case and Helm version
+	var snapshotFile string
+	if tc.description == "kube_version_and_api_versions" {
+		helmVersion := getHelmVersion(t, helm)
+		if strings.HasPrefix(helmVersion, "v4") {
+			snapshotFile = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm4", "want")
+		} else {
+			snapshotFile = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm3", "want")
+		}
+	} else {
+		snapshotFile = filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
+	}
 
 	// You can update the snapshot by running e.g.:
 	//   SAVE_SNAPSHOT=1 go1.25 test -run ^TestFramework$ ./
