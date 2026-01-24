@@ -35,7 +35,7 @@ data:
   apiVersion26: discovery.k8s.io/v1beta1
   apiVersion27: events.k8s.io/v1
   apiVersion28: events.k8s.io/v1beta1
-  apiVersion29: extensions/v1beta1
+  apiVersion29: extensions.k8s.io/v1beta1
   apiVersion30: flowcontrol.apiserver.k8s.io/v1
   apiVersion31: flowcontrol.apiserver.k8s.io/v1beta1
   apiVersion32: flowcontrol.apiserver.k8s.io/v1beta2
@@ -43,27 +43,26 @@ data:
   apiVersion34: networking.k8s.io/v1
   apiVersion35: networking.k8s.io/v1beta1
   apiVersion36: networking.k8s.io/v1
-  apiVersion37: networking.k8s.io/v1
-  apiVersion38: node.k8s.io/v1
-  apiVersion39: node.k8s.io/v1alpha1
-  apiVersion40: node.k8s.io/v1beta1
-  apiVersion41: policy/v1
-  apiVersion42: policy/v1beta1
-  apiVersion43: rbac.authorization.k8s.io/v1
-  apiVersion44: rbac.authorization.k8s.io/v1beta1
-  apiVersion45: rbac.authorization.k8s.io/v1alpha1
-  apiVersion46: resource.k8s.io/v1
-  apiVersion47: resource.k8s.io/v1beta2
-  apiVersion48: resource.k8s.io/v1beta1
-  apiVersion49: resource.k8s.io/v1alpha3
-  apiVersion50: scheduling.k8s.io/v1alpha1
-  apiVersion51: scheduling.k8s.io/v1beta1
-  apiVersion52: scheduling.k8s.io/v1
+  apiVersion37: node.k8s.io/v1
+  apiVersion38: node.k8s.io/v1alpha1
+  apiVersion39: node.k8s.io/v1beta1
+  apiVersion40: policy/v1
+  apiVersion41: policy/v1beta1
+  apiVersion42: rbac.authorization.k8s.io/v1
+  apiVersion43: rbac.authorization.k8s.io/v1beta1
+  apiVersion44: rbac.authorization.k8s.io/v1alpha1
+  apiVersion45: resource.k8s.io/v1
+  apiVersion46: resource.k8s.io/v1beta2
+  apiVersion47: resource.k8s.io/v1beta1
+  apiVersion48: resource.k8s.io/v1alpha3
+  apiVersion49: scheduling.k8s.io/v1alpha1
+  apiVersion50: scheduling.k8s.io/v1beta1
+  apiVersion51: scheduling.k8s.io/v1
+  apiVersion52: storage.k8s.io/v1beta1
   apiVersion53: storage.k8s.io/v1
   apiVersion54: storage.k8s.io/v1alpha1
-  apiVersion55: storage.k8s.io/v1beta1
-  apiVersion56: apiextensions.k8s.io/v1beta1
-  apiVersion57: apiextensions.k8s.io/v1
-  apiVersion58: foo/v1alpha1
-  apiVersion59: bar/v1beta1
-  apiVersion60: baz/v1
+  apiVersion55: apiextensions.k8s.io/v1beta1
+  apiVersion56: apiextensions.k8s.io/v1
+  apiVersion57: foo/v1alpha1
+  apiVersion58: bar/v1beta1
+  apiVersion59: baz/v1
