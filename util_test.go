@@ -3,6 +3,7 @@ package chartify
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -155,4 +156,59 @@ func TestFindSemVerInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestKustomizeBin(t *testing.T) {
+	t.Run("KustomizeBinary is set", func(t *testing.T) {
+		r := New(KustomizeBin("/custom/kustomize"))
+		got := r.kustomizeBin()
+		want := "/custom/kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("kustomize binary exists in PATH", func(t *testing.T) {
+		if _, err := exec.LookPath("kustomize"); err != nil {
+			t.Skip("kustomize binary not found in PATH")
+		}
+		r := New()
+		got := r.kustomizeBin()
+		want := "kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("fallback to kubectl kustomize when kustomize not found", func(t *testing.T) {
+		if _, err := exec.LookPath("kubectl"); err != nil {
+			t.Skip("kubectl binary not found in PATH")
+		}
+		if _, err := exec.LookPath("kustomize"); err == nil {
+			t.Skip("kustomize binary found, cannot test fallback")
+		}
+		r := New()
+		got := r.kustomizeBin()
+		want := "kubectl kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("KUSTOMIZE_BIN environment variable", func(t *testing.T) {
+		if _, err := exec.LookPath("kustomize"); err != nil {
+			t.Skip("kustomize binary not found in PATH")
+		}
+		if _, ok := os.LookupEnv("KUSTOMIZE_BIN"); ok {
+			t.Skip("KUSTOMIZE_BIN environment variable is already set")
+		}
+		os.Setenv("KUSTOMIZE_BIN", "/custom/kustomize")
+		defer os.Unsetenv("KUSTOMIZE_BIN")
+		r := New(KustomizeBin(os.Getenv("KUSTOMIZE_BIN")))
+		got := r.kustomizeBin()
+		want := "/custom/kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
 }
