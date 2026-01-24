@@ -110,6 +110,9 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 
 	if len(kustomizeOpts.Images) > 0 {
+		if r.isUsingKubectlKustomize() {
+			return "", fmt.Errorf("setting images via kustomizeOpts.Images is not supported when using 'kubectl kustomize'. Please set images directly in your kustomization.yaml file")
+		}
 		args := []string{"edit", "set", "image"}
 		for _, image := range kustomizeOpts.Images {
 			args = append(args, image.String())
@@ -120,6 +123,9 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.NamePrefix != "" {
+		if r.isUsingKubectlKustomize() {
+			return "", fmt.Errorf("setting namePrefix via kustomizeOpts.NamePrefix is not supported when using 'kubectl kustomize'. Please set namePrefix directly in your kustomization.yaml file")
+		}
 		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
 		if err != nil {
 			fmt.Println(err)
@@ -127,6 +133,9 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.NameSuffix != "" {
+		if r.isUsingKubectlKustomize() {
+			return "", fmt.Errorf("setting nameSuffix via kustomizeOpts.NameSuffix is not supported when using 'kubectl kustomize'. Please set nameSuffix directly in your kustomization.yaml file")
+		}
 		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
 		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
 		if err != nil {
@@ -134,13 +143,20 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.Namespace != "" {
+		if r.isUsingKubectlKustomize() {
+			return "", fmt.Errorf("setting namespace via kustomizeOpts.Namespace is not supported when using 'kubectl kustomize'. Please set namespace directly in your kustomization.yaml file")
+		}
 		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
 			return "", err
 		}
 	}
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
-	kustomizeArgs := []string{"-o", outputFile, "build"}
+	kustomizeArgs := []string{"-o", outputFile}
+
+	if !r.isUsingKubectlKustomize() {
+		kustomizeArgs = append(kustomizeArgs, "build")
+	}
 
 	if u.EnableAlphaPlugins {
 		f, err := r.kustomizeEnableAlphaPluginsFlag()
@@ -190,10 +206,18 @@ func (r *Runner) kustomizeVersion() (*semver.Version, error) {
 	return version, nil
 }
 
+// isUsingKubectlKustomize checks if we're using kubectl's built-in kustomize
+func (r *Runner) isUsingKubectlKustomize() bool {
+	return r.kustomizeBin() == "kubectl kustomize"
+}
+
 // kustomizeEnableAlphaPluginsFlag returns the kustomize binary alpha plugin argument.
 // Above Kustomize v3, it is `--enable-alpha-plugins`.
 // Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
 func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
+	if r.isUsingKubectlKustomize() {
+		return "--enable-alpha-plugins", nil
+	}
 	version, err := r.kustomizeVersion()
 	if err != nil {
 		return "", err
@@ -209,6 +233,9 @@ func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
 // Above Kustomize v3, it is `--load-restrictor=LoadRestrictionsNone`.
 // Below Kustomize v3 (including v3), it is `--load_restrictor=none`.
 func (r *Runner) kustomizeLoadRestrictionsNoneFlag() (string, error) {
+	if r.isUsingKubectlKustomize() {
+		return "--load-restrictor=LoadRestrictionsNone", nil
+	}
 	version, err := r.kustomizeVersion()
 	if err != nil {
 		return "", err
