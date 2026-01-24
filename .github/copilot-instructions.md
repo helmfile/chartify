@@ -7,7 +7,7 @@ Chartify is a Go library and CLI tool that converts Kubernetes resource YAMLs, K
 ## Working Effectively
 
 ### Bootstrap and Build
-- **Prerequisites**: Go 1.25.4+, Helm v4.0.0, Kustomize v5.8.0+ are required
+- **Prerequisites**: Go 1.25.4+, Helm v4.1.0, Kustomize v5.8.0+ are required
 - Build the CLI: `go build -o chartify ./cmd/chartify` -- takes 25 seconds. **NEVER CANCEL**. Set timeout to 60+ seconds.
 - Build dependencies: `go mod download` -- takes 15 seconds. **NEVER CANCEL**. Set timeout to 120+ seconds.
 - Alternative build with chart repo server: `go build -o chartreposerver ./cmd/chartreposerver`

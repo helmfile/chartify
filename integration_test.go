@@ -18,13 +18,32 @@ var (
 	chartSuffix        = "/log"
 )
 
+func getSnapshotFilePath(t *testing.T, description, helmBinary string) string {
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("failed to get helm version: %v", err)
+		return filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(description, " ", "_"), "want")
+	}
+	helmVersion := strings.TrimSpace(string(out))
+
+	snapshotBase := strings.ReplaceAll(description, " ", "_")
+	if snapshotBase != "kube_version_and_api_versions" {
+		return filepath.Join("testdata", "integration", "testcases", snapshotBase, "want")
+	}
+
+	helmMajor := strings.TrimPrefix(helmVersion, "v")
+	if len(helmMajor) > 0 && helmMajor[0] == '4' {
+		return filepath.Join("testdata", "integration", "testcases", snapshotBase+"_helm4", "want")
+	}
+	return filepath.Join("testdata", "integration", "testcases", snapshotBase+"_helm3", "want")
+}
+
 func TestIntegration(t *testing.T) {
 	if h := os.Getenv("HELM_BIN"); h != "" {
 		helm = h
 	}
-
-	setupHelmConfig(t)
-
 	repo := "myrepo"
 	startServer(t, repo)
 
@@ -405,7 +424,8 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	require.NoError(t, err)
 	got := string(out)
 
-	snapshotFile := filepath.Join("testdata", "integration", "testcases", strings.ReplaceAll(tc.description, " ", "_"), "want")
+	// Determine snapshot file path based on test case and Helm version
+	snapshotFile := getSnapshotFilePath(t, tc.description, helm)
 
 	// You can update the snapshot by running e.g.:
 	//   SAVE_SNAPSHOT=1 go1.25 test -run ^TestFramework$ ./

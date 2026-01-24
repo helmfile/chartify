@@ -83,9 +83,9 @@ resources:
 		}
 
 		type jsonPatch struct {
-			Target map[string]string   `yaml:"target"`
-			Patch  []map[string]any    `yaml:"patch"`
-			Path   string              `yaml:"path"`
+			Target map[string]string `yaml:"target"`
+			Patch  []map[string]any  `yaml:"patch"`
+			Path   string            `yaml:"path"`
 		}
 		patch := jsonPatch{}
 		if err := yaml.Unmarshal(fileBytes, &patch); err != nil {
