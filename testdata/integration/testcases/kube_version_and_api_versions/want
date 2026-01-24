@@ -41,8 +41,7 @@ data:
   apiVersion32: flowcontrol.apiserver.k8s.io/v1beta2
   apiVersion33: flowcontrol.apiserver.k8s.io/v1beta3
   apiVersion34: networking.k8s.io/v1
-  apiVersion35: networking.k8s.io/v1alpha1
-  apiVersion36: networking.k8s.io/v1beta1
+  apiVersion35: networking.k8s.io/v1beta1
   apiVersion37: node.k8s.io/v1
   apiVersion38: node.k8s.io/v1alpha1
   apiVersion39: node.k8s.io/v1beta1
