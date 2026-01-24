@@ -18,17 +18,6 @@ var (
 	chartSuffix        = "/log"
 )
 
-func getHelmVersion(t *testing.T, helmBinary string) string {
-	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("failed to get helm version: %v", err)
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 func getSnapshotFilePath(t *testing.T, description, helmBinary string) string {
 	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
