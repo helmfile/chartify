@@ -1,0 +1,66 @@
+---
+# Source: vers/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vers1-vers
+data:
+  kubeVersion: v1.23.0
+  apiVersion0: v1
+  apiVersion1: admissionregistration.k8s.io/v1
+  apiVersion2: admissionregistration.k8s.io/v1alpha1
+  apiVersion3: admissionregistration.k8s.io/v1beta1
+  apiVersion4: internal.apiserver.k8s.io/v1alpha1
+  apiVersion5: apps/v1
+  apiVersion6: apps/v1beta1
+  apiVersion7: apps/v1beta2
+  apiVersion8: authentication.k8s.io/v1
+  apiVersion9: authentication.k8s.io/v1alpha1
+  apiVersion10: authentication.k8s.io/v1beta1
+  apiVersion11: authorization.k8s.io/v1
+  apiVersion12: authorization.k8s.io/v1beta1
+  apiVersion13: autoscaling/v1
+  apiVersion14: autoscaling/v2
+  apiVersion15: autoscaling/v2beta1
+  apiVersion16: autoscaling/v2beta2
+  apiVersion17: batch/v1
+  apiVersion18: batch/v1beta1
+  apiVersion19: certificates.k8s.io/v1
+  apiVersion20: certificates.k8s.io/v1beta1
+  apiVersion21: certificates.k8s.io/v1alpha1
+  apiVersion22: coordination.k8s.io/v1alpha2
+  apiVersion23: coordination.k8s.io/v1beta1
+  apiVersion24: coordination.k8s.io/v1
+  apiVersion25: discovery.k8s.io/v1
+  apiVersion26: discovery.k8s.io/v1beta1
+  apiVersion27: events.k8s.io/v1
+  apiVersion28: events.k8s.io/v1beta1
+  apiVersion29: extensions/v1beta1
+  apiVersion30: flowcontrol.apiserver.k8s.io/v1
+  apiVersion31: flowcontrol.apiserver.k8s.io/v1beta1
+  apiVersion32: flowcontrol.apiserver.k8s.io/v1beta2
+  apiVersion33: flowcontrol.apiserver.k8s.io/v1beta3
+  apiVersion34: networking.k8s.io/v1
+  apiVersion37: networking.k8s.io/v1beta1
+  apiVersion38: node.k8s.io/v1
+  apiVersion39: node.k8s.io/v1alpha1
+  apiVersion40: node.k8s.io/v1beta1
+  apiVersion41: policy/v1
+  apiVersion42: policy/v1beta1
+  apiVersion43: rbac.authorization.k8s.io/v1
+  apiVersion44: rbac.authorization.k8s.io/v1beta1
+  apiVersion45: rbac.authorization.k8s.io/v1alpha1
+  apiVersion46: resource.k8s.io/v1
+  apiVersion47: resource.k8s.io/v1beta2
+  apiVersion48: resource.k8s.io/v1beta1
+  apiVersion49: resource.k8s.io/v1alpha3
+  apiVersion50: scheduling.k8s.io/v1alpha1
+  apiVersion51: scheduling.k8s.io/v1beta1
+  apiVersion52: scheduling.k8s.io/v1
+  apiVersion53: storage.k8s.io/v1
+  apiVersion54: storage.k8s.io/v1alpha1
+  apiVersion55: apiextensions.k8s.io/v1beta1
+  apiVersion56: apiextensions.k8s.io/v1
+  apiVersion57: foo/v1alpha1
+  apiVersion58: bar/v1beta1
+  apiVersion59: baz/v1

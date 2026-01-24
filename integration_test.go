@@ -18,15 +18,19 @@ var (
 	chartSuffix        = "/log"
 )
 
-func TestIntegration(t *testing.T) {
-	if h := os.Getenv("HELM_BIN"); h != "" {
-		helm = h
+func getHelmVersion(t *testing.T, helmBinary string) string {
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, helmBinary, "version", "--template={{.Version}}")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to get helm version: %v", err)
 	}
-
-	setupHelmConfig(t)
-
-	repo := "myrepo"
-	startServer(t, repo)
+	version := strings.TrimSpace(string(out))
+	if len(version) > 0 {
+		return version
+	}
+	return ""
+}
 
 	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/adhoc_dependency_condition$ ./
 	runTest(t, integrationTestCase{
@@ -378,6 +382,39 @@ func doTest(t *testing.T, tc integrationTestCase) {
 		}
 	})
 	require.NoError(t, err)
+
+	if info, _ := os.Stat(tc.chart); info != nil {
+		// Our contract (mainly for Helmfile) is that any local chart can pass
+		// subsequent `helm dep build` on it after chartification
+		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
+		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
+		helmDepBuildOut, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
+		}
+		require.NoError(t, err)
+	}
+
+	if info, _ := os.Stat(tc.chart); info != nil {
+		// Our contract (mainly for Helmfile) is that any local chart can pass
+		// subsequent `helm dep build` on it after chartification
+		// https://github.com/roboll/helmfile/issues/2074#issuecomment-1068335836
+		cmd := exec.CommandContext(ctx, helm, "dependency", "build", tmpDir)
+		helmDepBuildOut, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Logf("%s depependency build: %s", helm, string(helmDepBuildOut))
+		}
+		require.NoError(t, err)
+	}
+
+	// Determine Helm version and corresponding snapshot directory
+	helmVersion := getHelmVersion(t, helm)
+	var snapshotDir string
+	if helmVersion.Major == 4 {
+		snapshotDir = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions_helm4", strings.ReplaceAll(tc.description, " ", "_"), "want")
+	} else {
+		snapshotDir = filepath.Join("testdata", "integration", "testcases", "kube_version_and_api_versions", strings.ReplaceAll(tc.description, " ", "_"), "want")
+	}
 
 	if info, _ := os.Stat(tc.chart); info != nil {
 		// Our contract (mainly for Helmfile) is that any local chart can pass
