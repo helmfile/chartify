@@ -181,9 +181,13 @@ resources:
 
 	renderedFileName := "all.patched.yaml"
 	renderedFile := filepath.Join(tempDir, renderedFileName)
-	r.Logf("Generating %s", renderedFile)
+	r.Logf("Generating %s", renderedFileName)
 
-	kustomizeArgs := []string{"build", tempDir, "--output", renderedFile}
+	kustomizeArgs := []string{"--output", renderedFile}
+
+	if !r.isUsingKubectlKustomize() {
+		kustomizeArgs = append([]string{"build", tempDir}, kustomizeArgs...)
+	}
 
 	if u.EnableAlphaPlugins {
 		f, err := r.kustomizeEnableAlphaPluginsFlag()

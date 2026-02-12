@@ -1,9 +1,12 @@
 package chartify
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateFlagChain(t *testing.T) {
@@ -106,4 +109,92 @@ func TestFindSemVerInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestKustomizeBin(t *testing.T) {
+	t.Run("KustomizeBinary option is set", func(t *testing.T) {
+		r := New(KustomizeBin("/custom/kustomize"))
+		got := r.kustomizeBin()
+		want := "/custom/kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("KUSTOMIZE_BIN environment variable", func(t *testing.T) {
+		if _, ok := os.LookupEnv("KUSTOMIZE_BIN"); ok {
+			t.Skip("KUSTOMIZE_BIN environment variable is already set")
+		}
+		os.Setenv("KUSTOMIZE_BIN", "/custom/kustomize")
+		defer os.Unsetenv("KUSTOMIZE_BIN")
+		r := New()
+		got := r.kustomizeBin()
+		want := "/custom/kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("fallback to kubectl kustomize when kustomize not found", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		binDir := filepath.Join(tmpDir, "bin")
+		require.NoError(t, os.MkdirAll(binDir, 0755))
+
+		kubectlPath := filepath.Join(binDir, "kubectl")
+		kubectlContent := []byte("#!/bin/sh\necho 'kubectl version'\n")
+		require.NoError(t, os.WriteFile(kubectlPath, kubectlContent, 0755))
+
+		origPath := os.Getenv("PATH")
+		defer os.Setenv("PATH", origPath)
+		os.Setenv("PATH", binDir)
+
+		r := New()
+		got := r.kustomizeBin()
+		want := "kubectl kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("use kustomize when both kustomize and kubectl exist in PATH", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		binDir := filepath.Join(tmpDir, "bin")
+		require.NoError(t, os.MkdirAll(binDir, 0755))
+
+		kustomizePath := filepath.Join(binDir, "kustomize")
+		kustomizeContent := []byte("#!/bin/sh\necho 'kustomize version'\n")
+		require.NoError(t, os.WriteFile(kustomizePath, kustomizeContent, 0755))
+
+		kubectlPath := filepath.Join(binDir, "kubectl")
+		kubectlContent := []byte("#!/bin/sh\necho 'kubectl version'\n")
+		require.NoError(t, os.WriteFile(kubectlPath, kubectlContent, 0755))
+
+		origPath := os.Getenv("PATH")
+		defer os.Setenv("PATH", origPath)
+		os.Setenv("PATH", binDir)
+
+		r := New()
+		got := r.kustomizeBin()
+		want := "kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("return kustomize as fallback when neither kustomize nor kubectl exist", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		binDir := filepath.Join(tmpDir, "bin")
+		require.NoError(t, os.MkdirAll(binDir, 0755))
+
+		origPath := os.Getenv("PATH")
+		defer os.Setenv("PATH", origPath)
+		os.Setenv("PATH", binDir)
+
+		r := New()
+		got := r.kustomizeBin()
+		want := "kustomize"
+		if got != want {
+			t.Errorf("kustomizeBin() = %v, want %v", got, want)
+		}
+	})
 }

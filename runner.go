@@ -108,6 +108,15 @@ func (r *Runner) kustomizeBin() string {
 	if r.KustomizeBinary != "" {
 		return r.KustomizeBinary
 	}
+	if env := os.Getenv("KUSTOMIZE_BIN"); env != "" {
+		return env
+	}
+	if _, err := exec.LookPath("kustomize"); err == nil {
+		return "kustomize"
+	}
+	if _, err := exec.LookPath("kubectl"); err == nil {
+		return "kubectl kustomize"
+	}
 	return "kustomize"
 }
 
@@ -140,7 +149,7 @@ func (r *Runner) runBytes(envs map[string]string, dir, cmd string, args ...strin
 
 	name := nameArgs[0]
 
-	if len(nameArgs) > 2 {
+	if len(nameArgs) > 1 {
 		a := append([]string{}, nameArgs[1:]...)
 		a = append(a, args...)
 
@@ -154,10 +163,10 @@ func (r *Runner) runBytes(envs map[string]string, dir, cmd string, args ...strin
 		wrappedErr := fmt.Errorf(`%w
 
 COMMAND:
-%s
+ %s
 
 OUTPUT:
-%s`,
+ %s`,
 			err,
 			indent(c, "  "),
 			indent(string(errBytes), "  "),
