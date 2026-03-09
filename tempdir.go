@@ -18,6 +18,7 @@ func makeTempDir(release, chart string, opts *ChartifyOpts) string {
 	var id string
 	if opts.ID != "" {
 		id = strings.ReplaceAll(opts.ID, "/", string(filepath.Separator))
+		id = strings.ReplaceAll(id, ":", string(filepath.Separator))
 	} else {
 		id, err = GenerateID(release, chart, opts)
 		if err != nil {
