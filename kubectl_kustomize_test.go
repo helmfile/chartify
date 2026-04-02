@@ -9,8 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestKubectlKustomizeFallback(t *testing.T) {
-	t.Run("KustomizeBuild with kubectl kustomize", func(t *testing.T) {
+// TestKubectlKustomize tests behavior when kubectl kustomize is explicitly configured
+// via KustomizeBin("kubectl kustomize"). The automatic fallback selection is tested
+// in TestKustomizeBin.
+func TestKubectlKustomize(t *testing.T) {
+	t.Run("KustomizeBuild succeeds with kubectl kustomize option", func(t *testing.T) {
 		if _, err := exec.LookPath("kubectl"); err != nil {
 			t.Skip("kubectl binary not found in PATH")
 		}
