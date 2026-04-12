@@ -210,11 +210,6 @@ func (r *Runner) kustomizeVersion() (*semver.Version, error) {
 	return version, nil
 }
 
-// isUsingKubectlKustomize checks if we're using kubectl's built-in kustomize
-func (r *Runner) isUsingKubectlKustomize() bool {
-	return r.kustomizeBin() == "kubectl kustomize"
-}
-
 // kustomizeEnableAlphaPluginsFlag returns the kustomize binary alpha plugin argument.
 // Above Kustomize v3, it is `--enable-alpha-plugins`.
 // Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.

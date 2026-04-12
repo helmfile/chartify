@@ -28,12 +28,11 @@ if [ "$1" = "kustomize" ]; then
 fi
 `
 
-// writeStubKubectl creates a stub kubectl script in dir and returns its path.
-func writeStubKubectl(t *testing.T, dir string) string {
+// writeStubKubectl creates a stub kubectl script in dir.
+func writeStubKubectl(t *testing.T, dir string) {
 	t.Helper()
 	p := filepath.Join(dir, "kubectl")
 	require.NoError(t, os.WriteFile(p, []byte(stubKubectlScript), 0755))
-	return p
 }
 
 // TestKubectlKustomize tests behavior when kubectl kustomize is explicitly configured
