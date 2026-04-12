@@ -187,6 +187,9 @@ resources:
 
 	if !r.isUsingKubectlKustomize() {
 		kustomizeArgs = append([]string{"build", tempDir}, kustomizeArgs...)
+	} else {
+		// kubectl kustomize does not use the "build" subcommand; pass tempDir as the target directly.
+		kustomizeArgs = append([]string{tempDir}, kustomizeArgs...)
 	}
 
 	if u.EnableAlphaPlugins {

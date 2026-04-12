@@ -122,11 +122,15 @@ func TestKustomizeBin(t *testing.T) {
 	})
 
 	t.Run("KUSTOMIZE_BIN environment variable", func(t *testing.T) {
-		if _, ok := os.LookupEnv("KUSTOMIZE_BIN"); ok {
-			t.Skip("KUSTOMIZE_BIN environment variable is already set")
-		}
+		origVal, hadVal := os.LookupEnv("KUSTOMIZE_BIN")
+		defer func() {
+			if hadVal {
+				os.Setenv("KUSTOMIZE_BIN", origVal)
+			} else {
+				os.Unsetenv("KUSTOMIZE_BIN")
+			}
+		}()
 		os.Setenv("KUSTOMIZE_BIN", "/custom/kustomize")
-		defer os.Unsetenv("KUSTOMIZE_BIN")
 		r := New()
 		got := r.kustomizeBin()
 		want := "/custom/kustomize"
@@ -147,6 +151,15 @@ func TestKustomizeBin(t *testing.T) {
 		origPath := os.Getenv("PATH")
 		defer os.Setenv("PATH", origPath)
 		os.Setenv("PATH", binDir)
+
+		// Ensure KUSTOMIZE_BIN does not override PATH-based lookup.
+		origKustomizeBin, hadKustomizeBin := os.LookupEnv("KUSTOMIZE_BIN")
+		defer func() {
+			if hadKustomizeBin {
+				os.Setenv("KUSTOMIZE_BIN", origKustomizeBin)
+			}
+		}()
+		os.Unsetenv("KUSTOMIZE_BIN")
 
 		r := New()
 		got := r.kustomizeBin()
@@ -173,6 +186,15 @@ func TestKustomizeBin(t *testing.T) {
 		defer os.Setenv("PATH", origPath)
 		os.Setenv("PATH", binDir)
 
+		// Ensure KUSTOMIZE_BIN does not override PATH-based lookup.
+		origKustomizeBin, hadKustomizeBin := os.LookupEnv("KUSTOMIZE_BIN")
+		defer func() {
+			if hadKustomizeBin {
+				os.Setenv("KUSTOMIZE_BIN", origKustomizeBin)
+			}
+		}()
+		os.Unsetenv("KUSTOMIZE_BIN")
+
 		r := New()
 		got := r.kustomizeBin()
 		want := "kustomize"
@@ -189,6 +211,15 @@ func TestKustomizeBin(t *testing.T) {
 		origPath := os.Getenv("PATH")
 		defer os.Setenv("PATH", origPath)
 		os.Setenv("PATH", binDir)
+
+		// Ensure KUSTOMIZE_BIN does not override PATH-based lookup.
+		origKustomizeBin, hadKustomizeBin := os.LookupEnv("KUSTOMIZE_BIN")
+		defer func() {
+			if hadKustomizeBin {
+				os.Setenv("KUSTOMIZE_BIN", origKustomizeBin)
+			}
+		}()
+		os.Unsetenv("KUSTOMIZE_BIN")
 
 		r := New()
 		got := r.kustomizeBin()
