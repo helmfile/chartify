@@ -163,10 +163,10 @@ func (r *Runner) runBytes(envs map[string]string, dir, cmd string, args ...strin
 		wrappedErr := fmt.Errorf(`%w
 
 COMMAND:
- %s
+%s
 
 OUTPUT:
- %s`,
+%s`,
 			err,
 			indent(c, "  "),
 			indent(string(errBytes), "  "),

@@ -2,7 +2,6 @@ package chartify
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -14,9 +13,32 @@ import (
 // in TestKustomizeBin.
 func TestKubectlKustomize(t *testing.T) {
 	t.Run("KustomizeBuild succeeds with kubectl kustomize option", func(t *testing.T) {
-		if _, err := exec.LookPath("kubectl"); err != nil {
-			t.Skip("kubectl binary not found in PATH")
-		}
+		// Create a stub kubectl that handles the kustomize subcommand,
+		// so this test is self-contained and not skipped when kubectl is absent.
+		stubDir := t.TempDir()
+		stubKubectl := filepath.Join(stubDir, "kubectl")
+		// The stub writes minimal valid YAML to the -o output file.
+		stubScript := []byte(`#!/bin/sh
+# Stub kubectl for testing kubectl kustomize
+if [ "$1" = "kustomize" ]; then
+  shift
+  OUTPUT=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -o) OUTPUT="$2"; shift 2;;
+      *) shift;;
+    esac
+  done
+  if [ -n "$OUTPUT" ]; then
+    printf 'apiVersion: v1\nkind: List\nitems: []\n' > "$OUTPUT"
+  fi
+fi
+`)
+		require.NoError(t, os.WriteFile(stubKubectl, stubScript, 0755))
+
+		origPath := os.Getenv("PATH")
+		defer os.Setenv("PATH", origPath)
+		os.Setenv("PATH", stubDir+":"+origPath)
 
 		tmpDir := t.TempDir()
 		srcDir := t.TempDir()
