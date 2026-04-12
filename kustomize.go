@@ -84,6 +84,10 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		panic("--set is not yet supported for kustomize-based apps! Use -f/--values flag instead.")
 	}
 
+	// Resolve the kustomize binary once so PATH lookups are not repeated for every check.
+	bin := r.kustomizeBin()
+	usingKubectl := bin == "kubectl kustomize"
+
 	prevDir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -110,43 +114,43 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 
 	if len(kustomizeOpts.Images) > 0 {
-		if r.isUsingKubectlKustomize() {
-			return "", fmt.Errorf("setting images via kustomizeOpts.Images is not supported when using 'kubectl kustomize'. Please set images directly in your kustomization.yaml file")
+		if usingKubectl {
+			return "", fmt.Errorf("setting images via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set images directly in your kustomization.yaml file")
 		}
 		args := []string{"edit", "set", "image"}
 		for _, image := range kustomizeOpts.Images {
 			args = append(args, image.String())
 		}
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), args...)
+		_, err := r.runInDir(tempDir, bin, args...)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.NamePrefix != "" {
-		if r.isUsingKubectlKustomize() {
-			return "", fmt.Errorf("setting namePrefix via kustomizeOpts.NamePrefix is not supported when using 'kubectl kustomize'. Please set namePrefix directly in your kustomization.yaml file")
+		if usingKubectl {
+			return "", fmt.Errorf("setting namePrefix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namePrefix directly in your kustomization.yaml file")
 		}
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
+		_, err := r.runInDir(tempDir, bin, "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
 		if err != nil {
 			fmt.Println(err)
 			return "", err
 		}
 	}
 	if kustomizeOpts.NameSuffix != "" {
-		if r.isUsingKubectlKustomize() {
-			return "", fmt.Errorf("setting nameSuffix via kustomizeOpts.NameSuffix is not supported when using 'kubectl kustomize'. Please set nameSuffix directly in your kustomization.yaml file")
+		if usingKubectl {
+			return "", fmt.Errorf("setting nameSuffix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set nameSuffix directly in your kustomization.yaml file")
 		}
 		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
+		_, err := r.runInDir(tempDir, bin, "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
 		if err != nil {
 			return "", err
 		}
 	}
 	if kustomizeOpts.Namespace != "" {
-		if r.isUsingKubectlKustomize() {
-			return "", fmt.Errorf("setting namespace via kustomizeOpts.Namespace is not supported when using 'kubectl kustomize'. Please set namespace directly in your kustomization.yaml file")
+		if usingKubectl {
+			return "", fmt.Errorf("setting namespace via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namespace directly in your kustomization.yaml file")
 		}
-		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
+		_, err := r.runInDir(tempDir, bin, "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
 			return "", err
 		}
@@ -154,18 +158,18 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	outputFile := filepath.Join(tempDir, "templates", "kustomized.yaml")
 	kustomizeArgs := []string{"-o", outputFile}
 
-	if !r.isUsingKubectlKustomize() {
+	if !usingKubectl {
 		kustomizeArgs = append(kustomizeArgs, "build")
 	}
 
 	if u.EnableAlphaPlugins {
-		f, err := r.kustomizeEnableAlphaPluginsFlag()
+		f, err := r.kustomizeEnableAlphaPluginsFlag(usingKubectl)
 		if err != nil {
 			return "", err
 		}
 		kustomizeArgs = append(kustomizeArgs, f)
 	}
-	f, err := r.kustomizeLoadRestrictionsNoneFlag()
+	f, err := r.kustomizeLoadRestrictionsNoneFlag(usingKubectl)
 	if err != nil {
 		return "", err
 	}
@@ -175,7 +179,7 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		kustomizeArgs = append(kustomizeArgs, "--helm-command="+u.HelmBinary)
 	}
 
-	out, err := r.runInDir(tempDir, r.kustomizeBin(), append(kustomizeArgs, tempDir)...)
+	out, err := r.runInDir(tempDir, bin, append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return "", err
 	}
@@ -214,8 +218,8 @@ func (r *Runner) isUsingKubectlKustomize() bool {
 // kustomizeEnableAlphaPluginsFlag returns the kustomize binary alpha plugin argument.
 // Above Kustomize v3, it is `--enable-alpha-plugins`.
 // Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
-func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
-	if r.isUsingKubectlKustomize() {
+func (r *Runner) kustomizeEnableAlphaPluginsFlag(usingKubectl bool) (string, error) {
+	if usingKubectl {
 		return "--enable-alpha-plugins", nil
 	}
 	version, err := r.kustomizeVersion()
@@ -232,8 +236,8 @@ func (r *Runner) kustomizeEnableAlphaPluginsFlag() (string, error) {
 // the root argument.
 // Above Kustomize v3, it is `--load-restrictor=LoadRestrictionsNone`.
 // Below Kustomize v3 (including v3), it is `--load_restrictor=none`.
-func (r *Runner) kustomizeLoadRestrictionsNoneFlag() (string, error) {
-	if r.isUsingKubectlKustomize() {
+func (r *Runner) kustomizeLoadRestrictionsNoneFlag(usingKubectl bool) (string, error) {
+	if usingKubectl {
 		return "--load-restrictor=LoadRestrictionsNone", nil
 	}
 	version, err := r.kustomizeVersion()

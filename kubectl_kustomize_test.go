@@ -8,37 +8,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestKubectlKustomize tests behavior when kubectl kustomize is explicitly configured
-// via KustomizeBin("kubectl kustomize"). The automatic fallback selection is tested
-// in TestKustomizeBin.
-func TestKubectlKustomize(t *testing.T) {
-	t.Run("KustomizeBuild succeeds with kubectl kustomize option", func(t *testing.T) {
-		// Create a stub kubectl that handles the kustomize subcommand,
-		// so this test is self-contained and not skipped when kubectl is absent.
-		stubDir := t.TempDir()
-		stubKubectl := filepath.Join(stubDir, "kubectl")
-		// The stub writes minimal valid YAML to the -o output file.
-		stubScript := []byte(`#!/bin/sh
-# Stub kubectl for testing kubectl kustomize
+// stubKubectlScript is a minimal sh script that acts as a kubectl stub for tests.
+// It handles `kubectl kustomize <dir> [-o|-o FILE|--output FILE]` by writing
+// a minimal valid Kubernetes Deployment YAML to the specified output file.
+const stubKubectlScript = `#!/bin/sh
 if [ "$1" = "kustomize" ]; then
   shift
   OUTPUT=""
   while [ $# -gt 0 ]; do
     case "$1" in
       -o) OUTPUT="$2"; shift 2;;
+      --output) OUTPUT="$2"; shift 2;;
       *) shift;;
     esac
   done
   if [ -n "$OUTPUT" ]; then
-    printf 'apiVersion: v1\nkind: List\nitems: []\n' > "$OUTPUT"
+    printf 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: stub\n' > "$OUTPUT"
   fi
 fi
-`)
-		require.NoError(t, os.WriteFile(stubKubectl, stubScript, 0755))
+`
+
+// writeStubKubectl creates a stub kubectl script in dir and returns its path.
+func writeStubKubectl(t *testing.T, dir string) string {
+	t.Helper()
+	p := filepath.Join(dir, "kubectl")
+	require.NoError(t, os.WriteFile(p, []byte(stubKubectlScript), 0755))
+	return p
+}
+
+// TestKubectlKustomize tests behavior when kubectl kustomize is explicitly configured
+// via KustomizeBin("kubectl kustomize"). The automatic fallback selection is tested
+// in TestKustomizeBin.
+func TestKubectlKustomize(t *testing.T) {
+	t.Run("KustomizeBuild succeeds with kubectl kustomize option", func(t *testing.T) {
+		// Create a stub kubectl so the test is self-contained and always runs in CI.
+		stubDir := t.TempDir()
+		writeStubKubectl(t, stubDir)
 
 		origPath := os.Getenv("PATH")
 		defer os.Setenv("PATH", origPath)
-		os.Setenv("PATH", stubDir+":"+origPath)
+		os.Setenv("PATH", stubDir+string(os.PathListSeparator)+origPath)
 
 		tmpDir := t.TempDir()
 		srcDir := t.TempDir()
@@ -78,6 +87,31 @@ spec:
 		outputFile, err := r.KustomizeBuild(srcDir, tmpDir)
 		require.NoError(t, err)
 		require.FileExists(t, outputFile)
+	})
+
+	t.Run("Patch succeeds with kubectl kustomize option", func(t *testing.T) {
+		// Create a stub kubectl so the test is self-contained and always runs in CI.
+		stubDir := t.TempDir()
+		writeStubKubectl(t, stubDir)
+
+		origPath := os.Getenv("PATH")
+		defer os.Setenv("PATH", origPath)
+		os.Setenv("PATH", stubDir+string(os.PathListSeparator)+origPath)
+
+		tempDir := t.TempDir()
+
+		// Write a minimal manifest file that Patch() will reference.
+		manifestPath := filepath.Join(tempDir, "templates", "deploy.yaml")
+		require.NoError(t, os.MkdirAll(filepath.Dir(manifestPath), 0755))
+		require.NoError(t, os.WriteFile(manifestPath, []byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+`), 0644))
+
+		r := New(KustomizeBin("kubectl kustomize"))
+		err := r.Patch(tempDir, []string{manifestPath}, &PatchOpts{})
+		require.NoError(t, err)
 	})
 
 	t.Run("edit commands not supported with kubectl kustomize", func(t *testing.T) {
@@ -126,6 +160,6 @@ spec:
 
 		_, err := r.KustomizeBuild(srcDir, tmpDir, &KustomizeBuildOpts{ValuesFiles: []string{valuesFile}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "setting images via kustomizeOpts.Images is not supported when using 'kubectl kustomize'")
+		require.Contains(t, err.Error(), "setting images via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'")
 	})
 }
