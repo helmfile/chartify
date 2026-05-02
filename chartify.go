@@ -56,6 +56,10 @@ type ChartifyOpts struct {
 	// EnableKustomizAlphaPlugins will add the `--enable_alpha_plugins` flag when running `kustomize build`
 	EnableKustomizeAlphaPlugins bool
 
+	// KustomizeBuildArgs are extra arguments to pass to `kustomize build` command
+	// For example, ["--enable-exec"] for plugins like ksops
+	KustomizeBuildArgs []string
+
 	Injectors []string
 	Injects   []string
 
@@ -267,6 +271,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
 			Namespace:          u.Namespace,
 			HelmBinary:         r.helmBin(),
+			ExtraArgs:          u.KustomizeBuildArgs,
 		}
 		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomizeOpts)
 		if err != nil {
@@ -466,6 +471,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			StrategicMergePatches: u.StrategicMergePatches,
 			Transformers:          u.Transformers,
 			EnableAlphaPlugins:    u.EnableKustomizeAlphaPlugins,
+			ExtraArgs:             u.KustomizeBuildArgs,
 		}
 		if err := r.Patch(tempDir, generatedManifestFiles, patchOpts); err != nil {
 			return "", err
