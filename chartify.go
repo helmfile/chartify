@@ -382,13 +382,35 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				"This may result in outdated chart dependencies.", release)
 		} else {
 			// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
-			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors
-			depArgs := []string{"dependency", "up", tempDir}
+			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors.
+			//
+			// Prefer `helm dependency build` when a Chart.lock exists and no adhoc dependencies were
+			// injected. `build` resolves dependencies from the lock file, matching the behavior of
+			// helmfile's non-chartify code path (pkg/helmexec/exec.go BuildDeps) and respecting the
+			// reproducibility users expect when they commit a Chart.lock. `up` re-resolves against
+			// Chart.yaml constraints and rewrites the lock, which silently picks up newer versions
+			// when constraints permit (e.g. `version: "*"`).
+			//
+			// Adhoc dependencies are appended to Chart.yaml after the lock was generated, so the lock
+			// is by definition out of sync — `build` would fail. Fall back to `up` in that case.
+			useBuild := len(u.AdhocChartDependencies) == 0 && hasChartLock(tempDir)
+			depCmd := "up"
+			if useBuild {
+				depCmd = "build"
+			}
+			depArgs := []string{"dependency", depCmd, tempDir}
 			// Helm 4 requires --plain-http for HTTP-only OCI registries
 			if u.OCIPlainHTTP && r.IsHelm4() {
 				depArgs = append(depArgs, "--plain-http")
 			}
 			_, err := r.run(nil, r.helmBin(), depArgs...)
+			if err != nil && useBuild {
+				// `helm dependency build` errors when Chart.lock is out of sync with Chart.yaml.
+				// Fall back to `up` so chartify keeps working on charts whose lock has drifted.
+				r.Logf("`helm dependency build` failed for release %s, falling back to `helm dependency up`: %v", release, err)
+				depArgs[1] = "up"
+				_, err = r.run(nil, r.helmBin(), depArgs...)
+			}
 			if err != nil {
 				return "", err
 			}
@@ -678,6 +700,18 @@ func (r *Runner) RewriteChartToPreventDoubleRendering(tempDir, filesDir string) 
 	}
 
 	return nil
+}
+
+// hasChartLock reports whether a Chart.lock or requirements.lock file exists in the
+// given chart directory. Helm uses Chart.lock for apiVersion v2 charts and the legacy
+// requirements.lock for v1 charts; either is sufficient for `helm dependency build`.
+func hasChartLock(chartDir string) bool {
+	for _, name := range []string{"Chart.lock", "requirements.lock"} {
+		if _, err := os.Stat(filepath.Join(chartDir, name)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func createDirForFile(f string) error {

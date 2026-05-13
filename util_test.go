@@ -1,10 +1,38 @@
 package chartify
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
+
+func TestHasChartLock(t *testing.T) {
+	tests := []struct {
+		name     string
+		lockName string // empty means no lock file is created
+		want     bool
+	}{
+		{name: "no lock file", lockName: "", want: false},
+		{name: "Chart.lock present", lockName: "Chart.lock", want: true},
+		{name: "requirements.lock present", lockName: "requirements.lock", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.lockName != "" {
+				path := filepath.Join(dir, tt.lockName)
+				if err := os.WriteFile(path, []byte("dependencies: []\n"), 0644); err != nil {
+					t.Fatalf("writing fixture: %v", err)
+				}
+			}
+			if got := hasChartLock(dir); got != tt.want {
+				t.Errorf("hasChartLock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestCreateFlagChain(t *testing.T) {
 	testcases := []struct {
