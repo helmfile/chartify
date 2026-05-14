@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	helm        string = "helm"
-	chartSuffix        = "/log"
+	helm                         string = "helm"
+	chartSuffix                         = "/log"
+	multilineDocSeparatorPattern        = regexp.MustCompile(`\n{2,}---\n`)
 )
 
 func getSnapshotFilePath(t *testing.T, description, helmBinary string) string {
@@ -440,8 +442,14 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	snapshot, err := os.ReadFile(snapshotFile)
 	require.NoError(t, err, "reading snapshot %s", snapshotFile)
 
-	want := string(snapshot)
-	require.Equal(t, want, got)
+	want := normalizeManifestOutput(string(snapshot))
+	require.Equal(t, want, normalizeManifestOutput(got))
+}
+
+func normalizeManifestOutput(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = multilineDocSeparatorPattern.ReplaceAllString(s, "\n---\n")
+	return strings.TrimSpace(s) + "\n"
 }
 
 type integrationTestCase struct {
