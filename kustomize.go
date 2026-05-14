@@ -10,11 +10,32 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var validSortOrders = map[string]bool{
+	"legacy": true,
+	"fifo":   true,
+}
+
 type SortOptions struct {
 	Order string `yaml:"order"`
 }
 
+func (o *SortOptions) validate() error {
+	if o.Order == "" {
+		return fmt.Errorf("sortOptions.order must not be empty")
+	}
+	if !validSortOrders[o.Order] {
+		return fmt.Errorf("sortOptions.order %q is not valid; accepted values are: legacy, fifo", o.Order)
+	}
+	return nil
+}
+
 func marshalSortOptions(opts *SortOptions) ([]byte, error) {
+	if opts == nil {
+		return nil, nil
+	}
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
 	sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": opts})
 	if err != nil {
 		return nil, fmt.Errorf("marshaling sortOptions: %w", err)
@@ -157,6 +178,8 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 			return "", err
 		}
 	}
+	// sortOptions is appended directly to kustomization.yaml because kustomize
+	// has no `edit set sortoptions` command unlike images, nameprefix, etc.
 	if kustomizeOpts.SortOptions != nil {
 		sortOptsBytes, err := marshalSortOptions(kustomizeOpts.SortOptions)
 		if err != nil {

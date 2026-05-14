@@ -168,6 +168,12 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
+	if u.SortOptions != nil {
+		if err := u.SortOptions.validate(); err != nil {
+			return "", err
+		}
+	}
+
 	isLocal, _ := r.Exists(dirOrChart)
 
 	var isKustomization bool
