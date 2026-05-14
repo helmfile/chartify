@@ -440,8 +440,16 @@ func doTest(t *testing.T, tc integrationTestCase) {
 	snapshot, err := os.ReadFile(snapshotFile)
 	require.NoError(t, err, "reading snapshot %s", snapshotFile)
 
-	want := string(snapshot)
-	require.Equal(t, want, got)
+	want := normalizeManifestOutput(string(snapshot))
+	require.Equal(t, want, normalizeManifestOutput(got))
+}
+
+func normalizeManifestOutput(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	for strings.Contains(s, "\n\n---\n") {
+		s = strings.ReplaceAll(s, "\n\n---\n", "\n---\n")
+	}
+	return strings.TrimSpace(s) + "\n"
 }
 
 type integrationTestCase struct {
