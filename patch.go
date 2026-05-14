@@ -22,6 +22,9 @@ type PatchOpts struct {
 	// Above Kustomize v3, it is `--enable-alpha-plugins`.
 	// Below Kustomize v3 (including v3), it is `--enable_alpha_plugins`.
 	EnableAlphaPlugins bool
+
+	// SortOptions configures kustomize's sortOptions for resource ordering.
+	SortOptions *SortOptions
 }
 
 func (o *PatchOpts) SetPatchOption(opts *PatchOpts) error {
@@ -171,6 +174,14 @@ resources:
 			}
 			kustomizationYamlContent += `- ` + path + "\n"
 		}
+	}
+
+	if u.SortOptions != nil {
+		sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": u.SortOptions})
+		if err != nil {
+			return fmt.Errorf("marshaling sortOptions: %w", err)
+		}
+		kustomizationYamlContent += string(sortOptsBytes)
 	}
 
 	if err := r.WriteFile(filepath.Join(tempDir, "kustomization.yaml"), []byte(kustomizationYamlContent), 0644); err != nil {

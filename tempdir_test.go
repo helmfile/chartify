@@ -35,21 +35,21 @@ func TestGenerateID(t *testing.T) {
 		release: "foo",
 		chart:   "incubator/raw",
 		opts:    ChartifyOpts{},
-		want:    "foo-57669d77b",
+		want:    "foo-5586b9d54d",
 	})
 
 	run(testcase{
 		release: "foo",
 		chart:   "stable/envoy",
 		opts:    ChartifyOpts{},
-		want:    "foo-6c769b499",
+		want:    "foo-748fb9844f",
 	})
 
 	run(testcase{
 		release: "bar",
 		chart:   "incubator/raw",
 		opts:    ChartifyOpts{},
-		want:    "bar-7d49bf498c",
+		want:    "bar-77ddc8bd65",
 	})
 
 	run(testcase{
@@ -57,7 +57,7 @@ func TestGenerateID(t *testing.T) {
 		opts: ChartifyOpts{
 			Namespace: "myns",
 		},
-		want: "myns-foo-9c6f7fb79",
+		want: "myns-foo-5dbbf694b5",
 	})
 
 	for id, n := range ids {

@@ -10,11 +10,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type SortOptions struct {
+	Order string `yaml:"order"`
+}
+
 type KustomizeOpts struct {
-	Images     []KustomizeImage `yaml:"images"`
-	NamePrefix string           `yaml:"namePrefix"`
-	NameSuffix string           `yaml:"nameSuffix"`
-	Namespace  string           `yaml:"namespace"`
+	Images      []KustomizeImage `yaml:"images"`
+	NamePrefix  string           `yaml:"namePrefix"`
+	NameSuffix  string           `yaml:"nameSuffix"`
+	Namespace   string           `yaml:"namespace"`
+	SortOptions *SortOptions     `yaml:"sortOptions,omitempty"`
 }
 
 type KustomizeImage struct {
@@ -45,6 +50,7 @@ type KustomizeBuildOpts struct {
 	EnableAlphaPlugins bool
 	Namespace          string
 	HelmBinary         string
+	SortOptions        *SortOptions
 }
 
 func (o *KustomizeBuildOpts) SetKustomizeBuildOption(opts *KustomizeBuildOpts) error {
@@ -78,6 +84,10 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 	if u.Namespace != "" {
 		kustomizeOpts.Namespace = u.Namespace
+	}
+
+	if u.SortOptions != nil {
+		kustomizeOpts.SortOptions = u.SortOptions
 	}
 
 	if len(u.SetValues) > 0 || len(u.SetFlags) > 0 {
@@ -136,6 +146,19 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	if kustomizeOpts.Namespace != "" {
 		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
+			return "", err
+		}
+	}
+	if kustomizeOpts.SortOptions != nil {
+		sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": kustomizeOpts.SortOptions})
+		if err != nil {
+			return "", fmt.Errorf("marshaling sortOptions: %w", err)
+		}
+		f, err := os.ReadFile(kustomizationPath)
+		if err != nil {
+			return "", fmt.Errorf("reading kustomization.yaml for sortOptions: %w", err)
+		}
+		if err := r.WriteFile(kustomizationPath, append(f, sortOptsBytes...), 0644); err != nil {
 			return "", err
 		}
 	}

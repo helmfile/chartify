@@ -108,6 +108,11 @@ type ChartifyOpts struct {
 	// and it my produce output unexpected to you.
 	KubeVersion string
 
+	// SortOptions configures kustomize's sortOptions for resource ordering.
+	// Use &SortOptions{Order: "fifo"} to preserve resource order and minimize diff noise.
+	// See https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/sortoptions/
+	SortOptions *SortOptions
+
 	// ApiVersions is a string of kubernetes APIVersions and passed to helm template via --api-versions
 	// It is required if your chart contains any template that relies on Capabilities.APIVersion for rendering
 	// resources depending on the API resources and versions available in a target cluster.
@@ -267,6 +272,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			EnableAlphaPlugins: u.EnableKustomizeAlphaPlugins,
 			Namespace:          u.Namespace,
 			HelmBinary:         r.helmBin(),
+			SortOptions:        u.SortOptions,
 		}
 		kustomizeFile, err := r.KustomizeBuild(dirOrChart, tempDir, kustomizeOpts)
 		if err != nil {
@@ -466,6 +472,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			StrategicMergePatches: u.StrategicMergePatches,
 			Transformers:          u.Transformers,
 			EnableAlphaPlugins:    u.EnableKustomizeAlphaPlugins,
+			SortOptions:           u.SortOptions,
 		}
 		if err := r.Patch(tempDir, generatedManifestFiles, patchOpts); err != nil {
 			return "", err
@@ -684,7 +691,7 @@ func createDirForFile(f string) error {
 	dstFileDir := filepath.Dir(f)
 	if _, err := os.Lstat(dstFileDir); err == nil {
 
-	} else if err != nil && os.IsNotExist(err) {
+	} else if os.IsNotExist(err) {
 		if err := os.MkdirAll(dstFileDir, 0755); err != nil {
 			return fmt.Errorf("creating directory %s: %v", dstFileDir, err)
 		}
