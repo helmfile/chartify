@@ -126,7 +126,7 @@ CGO_ENABLED=0 go test ./...
 ```
 
 ### Prerequisites
-- Go 1.25.4+
+- Go 1.26.0+
 - Helm v4.2.0 (helm command)
 - Kustomize v5.8.0+ (kustomize command)
 
