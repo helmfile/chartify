@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 var (
 	helm        string = "helm"
 	chartSuffix        = "/log"
+	docSepWS           = regexp.MustCompile(`\n{2,}---\n`)
 )
 
 func getSnapshotFilePath(t *testing.T, description, helmBinary string) string {
@@ -446,9 +448,7 @@ func doTest(t *testing.T, tc integrationTestCase) {
 
 func normalizeManifestOutput(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
-	for strings.Contains(s, "\n\n---\n") {
-		s = strings.ReplaceAll(s, "\n\n---\n", "\n---\n")
-	}
+	s = docSepWS.ReplaceAllString(s, "\n---\n")
 	return strings.TrimSpace(s) + "\n"
 }
 
