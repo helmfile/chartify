@@ -177,9 +177,9 @@ resources:
 	}
 
 	if u.SortOptions != nil {
-		sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": u.SortOptions})
+		sortOptsBytes, err := marshalSortOptions(u.SortOptions)
 		if err != nil {
-			return fmt.Errorf("marshaling sortOptions: %w", err)
+			return err
 		}
 		kustomizationYamlContent += string(sortOptsBytes)
 	}

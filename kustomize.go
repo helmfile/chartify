@@ -14,6 +14,14 @@ type SortOptions struct {
 	Order string `yaml:"order"`
 }
 
+func marshalSortOptions(opts *SortOptions) ([]byte, error) {
+	sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": opts})
+	if err != nil {
+		return nil, fmt.Errorf("marshaling sortOptions: %w", err)
+	}
+	return sortOptsBytes, nil
+}
+
 type KustomizeOpts struct {
 	Images      []KustomizeImage `yaml:"images"`
 	NamePrefix  string           `yaml:"namePrefix"`
@@ -150,11 +158,11 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.SortOptions != nil {
-		sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": kustomizeOpts.SortOptions})
+		sortOptsBytes, err := marshalSortOptions(kustomizeOpts.SortOptions)
 		if err != nil {
-			return "", fmt.Errorf("marshaling sortOptions: %w", err)
+			return "", err
 		}
-		f, err := os.ReadFile(kustomizationPath)
+		f, err := r.ReadFile(kustomizationPath)
 		if err != nil {
 			return "", fmt.Errorf("reading kustomization.yaml for sortOptions: %w", err)
 		}
