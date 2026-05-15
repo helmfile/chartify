@@ -10,11 +10,45 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var validSortOrders = map[string]bool{
+	"legacy": true,
+	"fifo":   true,
+}
+
+type SortOptions struct {
+	Order string `yaml:"order"`
+}
+
+func (o *SortOptions) validate() error {
+	if o.Order == "" {
+		return fmt.Errorf("sortOptions.order must not be empty")
+	}
+	if !validSortOrders[o.Order] {
+		return fmt.Errorf("sortOptions.order %q is not valid; accepted values are: legacy, fifo", o.Order)
+	}
+	return nil
+}
+
+func marshalSortOptions(opts *SortOptions) ([]byte, error) {
+	if opts == nil {
+		return nil, nil
+	}
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+	sortOptsBytes, err := yaml.Marshal(map[string]*SortOptions{"sortOptions": opts})
+	if err != nil {
+		return nil, fmt.Errorf("marshaling sortOptions: %w", err)
+	}
+	return sortOptsBytes, nil
+}
+
 type KustomizeOpts struct {
-	Images     []KustomizeImage `yaml:"images"`
-	NamePrefix string           `yaml:"namePrefix"`
-	NameSuffix string           `yaml:"nameSuffix"`
-	Namespace  string           `yaml:"namespace"`
+	Images      []KustomizeImage `yaml:"images"`
+	NamePrefix  string           `yaml:"namePrefix"`
+	NameSuffix  string           `yaml:"nameSuffix"`
+	Namespace   string           `yaml:"namespace"`
+	SortOptions *SortOptions     `yaml:"sortOptions,omitempty"`
 }
 
 type KustomizeImage struct {
@@ -45,6 +79,7 @@ type KustomizeBuildOpts struct {
 	EnableAlphaPlugins bool
 	Namespace          string
 	HelmBinary         string
+	SortOptions        *SortOptions
 }
 
 func (o *KustomizeBuildOpts) SetKustomizeBuildOption(opts *KustomizeBuildOpts) error {
@@ -78,6 +113,10 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 	if u.Namespace != "" {
 		kustomizeOpts.Namespace = u.Namespace
+	}
+
+	if u.SortOptions != nil {
+		kustomizeOpts.SortOptions = u.SortOptions
 	}
 
 	if len(u.SetValues) > 0 || len(u.SetFlags) > 0 {
@@ -136,6 +175,21 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	if kustomizeOpts.Namespace != "" {
 		_, err := r.runInDir(tempDir, r.kustomizeBin(), "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
+			return "", err
+		}
+	}
+	// sortOptions is appended directly to kustomization.yaml because kustomize
+	// has no `edit set sortoptions` command unlike images, nameprefix, etc.
+	if kustomizeOpts.SortOptions != nil {
+		sortOptsBytes, err := marshalSortOptions(kustomizeOpts.SortOptions)
+		if err != nil {
+			return "", err
+		}
+		f, err := r.ReadFile(kustomizationPath)
+		if err != nil {
+			return "", fmt.Errorf("reading kustomization.yaml for sortOptions: %w", err)
+		}
+		if err := r.WriteFile(kustomizationPath, append(f, sortOptsBytes...), 0644); err != nil {
 			return "", err
 		}
 	}
