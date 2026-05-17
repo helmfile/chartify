@@ -391,9 +391,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 			// Chart.yaml constraints and rewrites the lock, which silently picks up newer versions
 			// when constraints permit (e.g. `version: "*"`).
 			//
-			// Adhoc dependencies are appended to Chart.yaml after the lock was generated, so the lock
-			// is by definition out of sync — `build` would fail. Fall back to `up` in that case.
-			useBuild := len(u.AdhocChartDependencies) == 0 && hasChartLock(tempDir)
+			// Adhoc dependencies (both new-style and deprecated -d flag) are appended to Chart.yaml
+			// after the lock was generated, so the lock is by definition out of sync — `build`
+			// would fail. Fall back to `up` in that case.
+			hasAdhocDeps := len(u.AdhocChartDependencies) > 0 || len(u.DeprecatedAdhocChartDependencies) > 0
+			useBuild := !hasAdhocDeps && hasChartLock(tempDir)
 			depCmd := "up"
 			if useBuild {
 				depCmd = "build"
@@ -404,10 +406,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				depArgs = append(depArgs, "--plain-http")
 			}
 			_, err := r.run(nil, r.helmBin(), depArgs...)
-			if err != nil && useBuild {
+			if err != nil && useBuild && isLockOutOfSyncErr(err) {
 				// `helm dependency build` errors when Chart.lock is out of sync with Chart.yaml.
-				// Fall back to `up` so chartify keeps working on charts whose lock has drifted.
-				r.Logf("`helm dependency build` failed for release %s, falling back to `helm dependency up`: %v", release, err)
+				// Only fall back to `up` for this specific case — other errors (network, auth,
+				// missing artifacts) should surface to the caller rather than silently re-resolving.
+				r.Logf("`helm dependency build` failed for release %s (lock out of sync), falling back to `helm dependency up`: %v", release, err)
 				depArgs[1] = "up"
 				_, err = r.run(nil, r.helmBin(), depArgs...)
 			}
@@ -712,6 +715,14 @@ func hasChartLock(chartDir string) bool {
 		}
 	}
 	return false
+}
+
+// isLockOutOfSyncErr returns true when the error from `helm dependency build` indicates
+// that the lock file is out of sync with Chart.yaml. Only this specific failure is safe
+// to recover from by falling back to `helm dependency up`.
+func isLockOutOfSyncErr(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "out of sync") || strings.Contains(msg, "lock file is out of date")
 }
 
 func createDirForFile(f string) error {

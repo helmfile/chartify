@@ -1,6 +1,7 @@
 package chartify
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +30,26 @@ func TestHasChartLock(t *testing.T) {
 			}
 			if got := hasChartLock(dir); got != tt.want {
 				t.Errorf("hasChartLock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsLockOutOfSyncErr(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "out of sync message", err: fmt.Errorf("the lock file (Chart.lock) is out of sync with the dependencies listed in Chart.yaml"), want: true},
+		{name: "lock file is out of date", err: fmt.Errorf("lock file is out of date"), want: true},
+		{name: "network error", err: fmt.Errorf("network timeout fetching dependency"), want: false},
+		{name: "auth error", err: fmt.Errorf("401 unauthorized"), want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isLockOutOfSyncErr(tt.err); got != tt.want {
+				t.Errorf("isLockOutOfSyncErr() = %v, want %v", got, tt.want)
 			}
 		})
 	}
