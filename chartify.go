@@ -382,18 +382,10 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 				"This may result in outdated chart dependencies.", release)
 		} else {
 			// Flatten the chart by fetching dependent chart archives and merging their K8s manifests into the temporary local chart
-			// So that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors.
+			// so that we can uniformly patch them with JSON patch, Strategic-Merge patch, or with injectors.
 			//
-			// Prefer `helm dependency build` when a Chart.lock exists and no adhoc dependencies were
-			// injected. `build` resolves dependencies from the lock file, matching the behavior of
-			// helmfile's non-chartify code path (pkg/helmexec/exec.go BuildDeps) and respecting the
-			// reproducibility users expect when they commit a Chart.lock. `up` re-resolves against
-			// Chart.yaml constraints and rewrites the lock, which silently picks up newer versions
-			// when constraints permit (e.g. `version: "*"`).
-			//
-			// Adhoc dependencies (both new-style and deprecated -d flag) are appended to Chart.yaml
-			// after the lock was generated, so the lock is by definition out of sync — `build`
-			// would fail. Fall back to `up` in that case.
+			// Use `helm dependency build` (honors Chart.lock) when a lock exists and no adhoc deps
+			// were injected; otherwise fall back to `helm dependency up` (re-resolves from Chart.yaml).
 			hasAdhocDeps := len(u.AdhocChartDependencies) > 0 || len(u.DeprecatedAdhocChartDependencies) > 0
 			useBuild := !hasAdhocDeps && hasChartLock(tempDir)
 			depCmd := "up"
@@ -720,6 +712,7 @@ func hasChartLock(chartDir string) bool {
 // isLockOutOfSyncErr returns true when the error from `helm dependency build` indicates
 // that the lock file is out of sync with Chart.yaml. Only this specific failure is safe
 // to recover from by falling back to `helm dependency up`.
+// Matches messages from Helm 3.x ("out of sync") and Helm 2.x ("lock file is out of date").
 func isLockOutOfSyncErr(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "out of sync") || strings.Contains(msg, "lock file is out of date")

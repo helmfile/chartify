@@ -259,7 +259,6 @@ func TestDepCommandSelection(t *testing.T) {
 		depCalls := filterDepCalls(*calls)
 		require.Len(t, depCalls, 1)
 		require.Equal(t, "build", depCalls[0].args[1])
-		_ = calls
 	})
 
 	t.Run("uses requirements.lock for legacy charts", func(t *testing.T) {
