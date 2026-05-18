@@ -2,8 +2,11 @@ package chartify
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -112,6 +115,179 @@ func TestReadAdhocDependencies(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestDepCommandSelection(t *testing.T) {
+	newTestRunner := func(failBuild bool, failMsg string) (*Runner, *[]helmCall) {
+		var calls []helmCall
+		r := &Runner{
+			HelmBinary: "helm",
+			isHelm3:    true,
+			RunCommand: func(name string, args []string, dir string, stdout, stderr io.Writer, env map[string]string) error {
+				calls = append(calls, helmCall{name: name, args: append([]string{}, args...)})
+				if failBuild && len(args) >= 2 && args[0] == "dependency" && args[1] == "build" {
+					if _, err := stderr.Write([]byte(failMsg)); err != nil {
+						return err
+					}
+					return fmt.Errorf("%s", failMsg)
+				}
+				return nil
+			},
+			CopyFile:  CopyFile,
+			WriteFile: os.WriteFile,
+			ReadFile:  os.ReadFile,
+			ReadDir:   os.ReadDir,
+			Walk:      filepath.Walk,
+			Exists:    exists,
+			Logf:      func(string, ...interface{}) {},
+			MakeTempDir: func(release, chart string, opts *ChartifyOpts) string {
+				return ""
+			},
+		}
+		return r, &calls
+	}
+
+	setupChart := func(t *testing.T, withLock bool, lockName string) string {
+		t.Helper()
+		dir := t.TempDir()
+		chartYaml := filepath.Join(dir, "Chart.yaml")
+		if err := os.WriteFile(chartYaml, []byte("apiVersion: v2\nname: test\nversion: 0.1.0\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(dir, "templates"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if withLock {
+			if err := os.WriteFile(filepath.Join(dir, lockName), []byte("dependencies: []\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return dir
+	}
+
+	t.Run("uses dependency build when Chart.lock exists and no adhoc deps", func(t *testing.T) {
+		chartDir := setupChart(t, true, "Chart.lock")
+		r, calls := newTestRunner(false, "")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "build", depCalls[0].args[1])
+	})
+
+	t.Run("uses dependency up when no lock file exists", func(t *testing.T) {
+		chartDir := setupChart(t, false, "")
+		r, calls := newTestRunner(false, "")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "up", depCalls[0].args[1])
+	})
+
+	t.Run("uses dependency up when AdhocChartDependencies present despite lock", func(t *testing.T) {
+		chartDir := setupChart(t, true, "Chart.lock")
+		r, calls := newTestRunner(false, "")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+		r.Exists = func(path string) (bool, error) {
+			if _, err := os.Stat(path); err == nil {
+				return true, nil
+			}
+			return false, nil
+		}
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{{Chart: chartDir, Version: "0.1.0"}},
+		}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "up", depCalls[0].args[1])
+	})
+
+	t.Run("uses dependency up when DeprecatedAdhocChartDependencies present despite lock", func(t *testing.T) {
+		chartDir := setupChart(t, true, "Chart.lock")
+		r, calls := newTestRunner(false, "")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+		r.Exists = func(path string) (bool, error) {
+			if _, err := os.Stat(path); err == nil {
+				return true, nil
+			}
+			return false, nil
+		}
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{
+			DeprecatedAdhocChartDependencies: []string{chartDir + ":0.1.0"},
+		}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "up", depCalls[0].args[1])
+	})
+
+	t.Run("falls back to up when build fails with lock out of sync", func(t *testing.T) {
+		chartDir := setupChart(t, true, "Chart.lock")
+		r, calls := newTestRunner(true, "the lock file (Chart.lock) is out of sync with the dependencies listed in Chart.yaml")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 2)
+		require.Equal(t, "build", depCalls[0].args[1])
+		require.Equal(t, "up", depCalls[1].args[1])
+	})
+
+	t.Run("does not fall back to up when build fails with non-sync error", func(t *testing.T) {
+		chartDir := setupChart(t, true, "Chart.lock")
+		r, calls := newTestRunner(true, "network timeout fetching dependency")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{}))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "network timeout")
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "build", depCalls[0].args[1])
+	})
+
+	t.Run("uses requirements.lock for legacy charts", func(t *testing.T) {
+		chartDir := setupChart(t, true, "requirements.lock")
+		r, calls := newTestRunner(false, "")
+		r.MakeTempDir = func(_, _ string, _ *ChartifyOpts) string { return chartDir }
+
+		_, err := r.Chartify("rel", chartDir, WithChartifyOpts(&ChartifyOpts{}))
+		require.NoError(t, err)
+
+		depCalls := filterDepCalls(*calls)
+		require.Len(t, depCalls, 1)
+		require.Equal(t, "build", depCalls[0].args[1])
+	})
+}
+
+type helmCall struct {
+	name string
+	args []string
+}
+
+func filterDepCalls(calls []helmCall) []helmCall {
+	var result []helmCall
+	for _, c := range calls {
+		if len(c.args) >= 2 && c.args[0] == "dependency" {
+			result = append(result, c)
+		}
+	}
+	return result
 }
 
 func TestUseHelmChartsInKustomize(t *testing.T) {
