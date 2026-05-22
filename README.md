@@ -42,12 +42,12 @@ go build -o chartreposerver ./cmd/chartreposerver
 
 ## CLI
 
-Beyond it's usage with helmfile, it also provides a basic CLI application that can be run independently.
+Beyond its usage with helmfile, it also provides a basic CLI application that can be run independently.
 
 The simplest usage of the command is:
 
 ```
-$ chartify $RELEASE $CHART -o $OUTPUT_DIR
+chartify $RELEASE $CHART -o $OUTPUT_DIR
 ```
 
 Examples:
