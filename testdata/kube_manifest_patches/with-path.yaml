@@ -1,0 +1,4 @@
+path: external-patch.yaml
+target:
+  kind: ConfigMap
+  name: myconfig3

@@ -332,6 +332,80 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/kube_manifest_yml_with_patches_inline$ ./
+	// Verifies kustomize unified "patches:" field with inline strategic merge patch content.
+	// See https://github.com/helmfile/chartify/issues/94
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_yml_with_patches_inline",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest_yml",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + chartSuffix,
+					Version: "0.1.0",
+				},
+			},
+			Patches: []string{
+				"./testdata/kube_manifest_patches/inline.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/kube_manifest_yml_with_patches_list$ ./
+	// Verifies kustomize unified "patches:" field with a list of patch documents (both
+	// strategic merge and JSON6902) in a single file.
+	// See https://github.com/helmfile/chartify/issues/94
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_yml_with_patches_list",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest_yml",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + chartSuffix,
+					Version: "0.1.0",
+				},
+			},
+			Patches: []string{
+				"./testdata/kube_manifest_patches/list.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/kube_manifest_yml_with_patches_path$ ./
+	// Verifies kustomize unified "patches:" field with an external file reference ("path:").
+	// The referenced file is copied into the chartify temp dir so kustomize can access it.
+	// See https://github.com/helmfile/chartify/issues/94
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_yml_with_patches_path",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest_yml",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + chartSuffix,
+					Version: "0.1.0",
+				},
+			},
+			Patches: []string{
+				"./testdata/kube_manifest_patches/with-path.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
+
 	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/kube_manifest_transformer_alpha_plugin$ ./
 	runTest(t, integrationTestCase{
 		description: "kube_manifest_transformer_alpha_plugin",

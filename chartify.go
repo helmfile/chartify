@@ -69,6 +69,14 @@ type ChartifyOpts struct {
 	JsonPatches           []string
 	StrategicMergePatches []string
 
+	// Patches is the list of YAML files each defining one or more kustomize "patches" entries.
+	// Each file may contain either a single patch document or a list of patch documents.
+	// This leverages kustomize's unified "patches" field which auto-detects whether each
+	// patch is a Strategic Merge Patch or a JSON Patch, and supports both inline patch
+	// content (via the "patch:" field) and external file references (via the "path:" field).
+	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
+	Patches []string
+
 	// Transformers is the list of YAML files each defines a Kustomize transformer
 	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/configureBuiltinPlugin.md#configuring-the-builtin-plugins-instead for more information.
 	Transformers []string
@@ -465,7 +473,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 
 	var (
 		needsNamespaceOverride = overrideNamespace != ""
-		needsKustomizeBuild    = len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Transformers) > 0
+		needsKustomizeBuild    = len(u.JsonPatches) > 0 || len(u.StrategicMergePatches) > 0 || len(u.Patches) > 0 || len(u.Transformers) > 0
 		needsInjections        = len(u.Injectors) > 0 || len(u.Injects) > 0
 	)
 
@@ -498,6 +506,7 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,
+			Patches:               u.Patches,
 			Transformers:          u.Transformers,
 			EnableAlphaPlugins:    u.EnableKustomizeAlphaPlugins,
 			SortOptions:           u.SortOptions,

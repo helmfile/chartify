@@ -1,0 +1,10 @@
+patch: |-
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: myconfig1
+  data:
+    baz: PATCHED-INLINE
+target:
+  kind: ConfigMap
+  name: myconfig1

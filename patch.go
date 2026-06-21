@@ -17,6 +17,14 @@ type PatchOpts struct {
 
 	StrategicMergePatches []string
 
+	// Patches is the list of YAML files each defining one or more kustomize "patches" entries.
+	// Each file may contain either a single patch document or a list of patch documents.
+	// This leverages kustomize's unified "patches" field which auto-detects whether each
+	// patch is a Strategic Merge Patch or a JSON Patch, and supports both inline patch
+	// content (via the "patch:" field) and external file references (via the "path:" field).
+	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
+	Patches []string
+
 	Transformers []string
 
 	// Kustomize alpha plugin enable flag.
@@ -82,7 +90,7 @@ resources:
 		kustomizationYamlContent += `- ` + f + "\n"
 	}
 
-	if len(u.StrategicMergePatches) > 0 || len(u.JsonPatches) > 0 {
+	if len(u.StrategicMergePatches) > 0 || len(u.JsonPatches) > 0 || len(u.Patches) > 0 {
 		kustomizationYamlContent += `patches:
 `
 	}
@@ -163,6 +171,70 @@ resources:
 			return err
 		}
 		kustomizationYamlContent += `- path: ` + path + "\n"
+	}
+
+	// handle kustomize unified patches field.
+	// Each file may contain a single patch document or a list of patch documents.
+	// External file references via "path:" are copied into tempDir so kustomize can
+	// access them within its restricted root.
+	// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
+	for i, f := range u.Patches {
+		fileBytes, err := r.ReadFile(f)
+		if err != nil {
+			return err
+		}
+
+		patchFileDir := filepath.Dir(f)
+		entries, err := parsePatchDocuments(fileBytes)
+		if err != nil {
+			return fmt.Errorf("parsing patches file %s: %w", f, err)
+		}
+
+		for j, entry := range entries {
+			// If the entry references an external file via "path:", copy that file
+			// into tempDir and rewrite the path to be relative to the kustomization root.
+			if pathStr, ok := entry["path"].(string); ok && pathStr != "" {
+				resolvedPath, found := r.resolveTransformerPath(pathStr, patchFileDir)
+				if found {
+					// Skip directories — the "path" field should reference a file.
+					// A directory match is likely coincidental; leave it for kustomize to handle.
+					info, statErr := os.Stat(resolvedPath)
+					if statErr != nil {
+						return fmt.Errorf("checking file referenced by patch path %q: %w", pathStr, statErr)
+					}
+					if !info.IsDir() {
+						patchBytes, readErr := r.ReadFile(resolvedPath)
+						if readErr != nil {
+							return fmt.Errorf("reading file referenced by patch path %q: %w", pathStr, readErr)
+						}
+						destRelPath := filepath.Join("patch-files", fmt.Sprintf("patchfile.%d.%d.yaml", i, j))
+						destAbsPath := filepath.Join(tempDir, destRelPath)
+						if err := os.MkdirAll(filepath.Dir(destAbsPath), 0755); err != nil {
+							return err
+						}
+						if err := r.WriteFile(destAbsPath, patchBytes, 0644); err != nil {
+							return err
+						}
+						r.Logf("Copied patch path reference %q to %q", pathStr, destRelPath)
+						entry["path"] = destRelPath
+					}
+				}
+			}
+
+			encoded, err := marshalPatchEntry(entry)
+			if err != nil {
+				return err
+			}
+
+			for k, line := range strings.Split(encoded, "\n") {
+				if k == 0 {
+					line = "- " + line
+				} else {
+					line = "  " + line
+				}
+				kustomizationYamlContent += line + "\n"
+			}
+		}
 	}
 
 	if len(u.Transformers) > 0 {
@@ -369,7 +441,7 @@ resources:
 		return fmt.Errorf("writing %s: %w", crdsFile, err)
 	}
 
-	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "transformer-patch-files", "kustomization.yaml", renderedFileName)
+	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "jsonpatches", "patch-files", "transformer-patch-files", "kustomization.yaml", renderedFileName)
 
 	for _, f := range removedPathList {
 		d := filepath.Join(tempDir, f)
@@ -568,4 +640,80 @@ func (r *Runner) resolveTransformerPath(pathStr string, transformerFileDir strin
 	}
 
 	return pathStr, false
+}
+
+// parsePatchDocuments parses YAML content that may be either a single patch document
+// (a YAML mapping), a list of patch documents (a YAML sequence), or a multi-document
+// YAML stream. It returns a slice of patch entry maps. Each entry is a kustomize
+// "patches" field item, e.g.:
+//
+//	patches:
+//	- patch: |-
+//	    apiVersion: apps/v1
+//	    kind: Deployment
+//	  target:
+//	    kind: Deployment
+//
+// See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
+func parsePatchDocuments(content []byte) ([]map[string]interface{}, error) {
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+
+	var entries []map[string]interface{}
+
+	for {
+		var doc interface{}
+		if err := decoder.Decode(&doc); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("decoding patches YAML: %w", err)
+		}
+
+		switch v := doc.(type) {
+		case map[string]interface{}:
+			if v == nil {
+				// Skip null documents (e.g. from empty "---" separators).
+				continue
+			}
+			entries = append(entries, v)
+		case []interface{}:
+			if len(v) == 0 {
+				return nil, fmt.Errorf("patches list is empty")
+			}
+			for i, item := range v {
+				m, ok := item.(map[string]interface{})
+				if !ok {
+					return nil, fmt.Errorf("patches list item %d must be a YAML mapping, got %T", i, item)
+				}
+				entries = append(entries, m)
+			}
+		case nil:
+			// Skip null documents.
+			continue
+		default:
+			return nil, fmt.Errorf("patches file must contain YAML mappings or lists of mappings, got %T", doc)
+		}
+	}
+
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("patches file contains no patch entries")
+	}
+
+	return entries, nil
+}
+
+// marshalPatchEntry encodes a single kustomize patches entry as YAML suitable for
+// embedding as a list item under the "patches:" field of kustomization.yaml.
+// The returned string has no leading or trailing whitespace lines.
+func marshalPatchEntry(entry map[string]interface{}) (string, error) {
+	buf := &bytes.Buffer{}
+	encoder := yaml.NewEncoder(buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(entry); err != nil {
+		return "", fmt.Errorf("encoding patch entry: %w", err)
+	}
+	if err := encoder.Close(); err != nil {
+		return "", fmt.Errorf("closing patch encoder: %w", err)
+	}
+	return strings.TrimRight(buf.String(), "\n"), nil
 }

@@ -39,12 +39,14 @@ func main() {
 		AdhocChartDependencies:      nil,
 		JsonPatches:                 nil,
 		StrategicMergePatches:       nil,
+		Patches:                     nil,
 		WorkaroundOutputDirIssue:    false,
 		IncludeCRDs:                 false,
 	}
 
 	deps := stringSlice{}
 	kustomizeBuildArgs := stringSlice{}
+	patches := stringSlice{}
 
 	flag.StringVar(&file, "f", "-", "The path to the input file or stdout(-)")
 	flag.StringVar(&outDir, "o", "", "The path to the output directory")
@@ -52,6 +54,7 @@ func main() {
 	flag.BoolVar(&opts.IncludeCRDs, "include-crds", false, "Whether to render CRDs contained in the chart and include the results into the output")
 	flag.StringVar(&strategicMergePatch, "strategic-merge-patch", "", "Path to a kustomize strategic merge patch file")
 	flag.Var(&kustomizeBuildArgs, "kustomize-build-arg", "Extra arguments to pass to 'kustomize build' command (e.g. --enable-exec). Can be specified multiple times.")
+	flag.Var(&patches, "patch", "Path to a kustomize unified \"patches:\" entry file. Each file may contain a single patch document or a list of patch documents (inline \"patch:\" content or external \"path:\" reference). See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md. Can be specified multiple times.")
 
 	flag.Parse()
 
@@ -65,6 +68,7 @@ func main() {
 
 	opts.DeprecatedAdhocChartDependencies = deps
 	opts.KustomizeBuildArgs = kustomizeBuildArgs
+	opts.Patches = patches
 
 	c := chartify.New(chartify.HelmBin("helm"))
 
