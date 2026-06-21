@@ -127,6 +127,23 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	bin := r.kustomizeBin()
 	usingKubectl := bin == "kubectl kustomize"
 
+	// kubectl kustomize has no "edit" subcommand, so validate up front (before any file I/O)
+	// to avoid leaving stale files in tempDir on error.
+	if usingKubectl {
+		if len(kustomizeOpts.Images) > 0 {
+			return "", fmt.Errorf("setting images via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set images directly in your kustomization.yaml file")
+		}
+		if kustomizeOpts.NamePrefix != "" {
+			return "", fmt.Errorf("setting namePrefix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namePrefix directly in your kustomization.yaml file")
+		}
+		if kustomizeOpts.NameSuffix != "" {
+			return "", fmt.Errorf("setting nameSuffix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set nameSuffix directly in your kustomization.yaml file")
+		}
+		if kustomizeOpts.Namespace != "" {
+			return "", fmt.Errorf("setting namespace via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namespace directly in your kustomization.yaml file")
+		}
+	}
+
 	prevDir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -153,9 +170,6 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 	}
 
 	if len(kustomizeOpts.Images) > 0 {
-		if usingKubectl {
-			return "", fmt.Errorf("setting images via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set images directly in your kustomization.yaml file")
-		}
 		args := []string{"edit", "set", "image"}
 		for _, image := range kustomizeOpts.Images {
 			args = append(args, image.String())
@@ -166,9 +180,6 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.NamePrefix != "" {
-		if usingKubectl {
-			return "", fmt.Errorf("setting namePrefix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namePrefix directly in your kustomization.yaml file")
-		}
 		_, err := r.runInDir(tempDir, bin, "edit", "set", "nameprefix", kustomizeOpts.NamePrefix)
 		if err != nil {
 			fmt.Println(err)
@@ -176,9 +187,6 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.NameSuffix != "" {
-		if usingKubectl {
-			return "", fmt.Errorf("setting nameSuffix via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set nameSuffix directly in your kustomization.yaml file")
-		}
 		// "--" is there to avoid `namesuffix -acme` to fail due to `-a` being considered as a flag
 		_, err := r.runInDir(tempDir, bin, "edit", "set", "namesuffix", "--", kustomizeOpts.NameSuffix)
 		if err != nil {
@@ -186,9 +194,6 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 		}
 	}
 	if kustomizeOpts.Namespace != "" {
-		if usingKubectl {
-			return "", fmt.Errorf("setting namespace via Chartify values files or kustomize build options is not supported when using 'kubectl kustomize'. Please set namespace directly in your kustomization.yaml file")
-		}
 		_, err := r.runInDir(tempDir, bin, "edit", "set", "namespace", kustomizeOpts.Namespace)
 		if err != nil {
 			return "", err
@@ -248,7 +253,11 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 // kustomizeVersion returns the kustomize binary version.
 func (r *Runner) kustomizeVersion() (*semver.Version, error) {
-	versionInfo, err := r.run(nil, r.kustomizeBin(), "version")
+	bin := r.kustomizeBin()
+	if bin == "kubectl kustomize" {
+		return nil, fmt.Errorf("kustomize version detection is not available when using 'kubectl kustomize'")
+	}
+	versionInfo, err := r.run(nil, bin, "version")
 	if err != nil {
 		return nil, err
 	}

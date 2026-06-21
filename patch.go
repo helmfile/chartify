@@ -201,10 +201,7 @@ resources:
 	kustomizeArgs := []string{"--output", renderedFile}
 
 	if !usingKubectl {
-		kustomizeArgs = append([]string{"build", tempDir}, kustomizeArgs...)
-	} else {
-		// kubectl kustomize does not use the "build" subcommand; pass tempDir as the target directly.
-		kustomizeArgs = append([]string{tempDir}, kustomizeArgs...)
+		kustomizeArgs = append(kustomizeArgs, "build")
 	}
 
 	if u.EnableAlphaPlugins {
@@ -215,7 +212,8 @@ resources:
 		kustomizeArgs = append(kustomizeArgs, f)
 	}
 
-	_, err := r.run(nil, bin, kustomizeArgs...)
+	// tempDir is the kustomize target, appended last (mirrors KustomizeBuild argument order).
+	_, err := r.run(nil, bin, append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return err
 	}
