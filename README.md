@@ -37,7 +37,7 @@ go build -o chartreposerver ./cmd/chartreposerver
 ### Prerequisites
 
 - Go 1.26.0+
-- Helm v4.2.1 (helm command)
+- Helm v4.2.2 (helm command)
 - Kustomize v5.8.0+ (kustomize command, optional, for kustomize integration)
 
 ## CLI
