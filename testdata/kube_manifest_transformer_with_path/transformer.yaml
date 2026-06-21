@@ -1,0 +1,8 @@
+apiVersion: builtin
+kind: PatchTransformer
+metadata:
+  name: not-important
+path: patch.yaml
+target:
+  kind: ConfigMap
+  name: myconfig1

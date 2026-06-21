@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -172,6 +173,16 @@ resources:
 			if err != nil {
 				return err
 			}
+
+			// Resolve any external file references (e.g., "path:" in PatchTransformer) by
+			// copying referenced files into tempDir and rewriting paths.
+			// See https://github.com/helmfile/chartify/issues/90
+			transformerFileDir := filepath.Dir(f)
+			bytes, err = r.resolveTransformerFileRefs(bytes, transformerFileDir, tempDir)
+			if err != nil {
+				return err
+			}
+
 			path := filepath.Join("transformers", fmt.Sprintf("transformer.%d.yaml", i))
 			abspath := filepath.Join(tempDir, path)
 			if err := os.MkdirAll(filepath.Dir(abspath), 0755); err != nil {
@@ -358,7 +369,7 @@ resources:
 		return fmt.Errorf("writing %s: %w", crdsFile, err)
 	}
 
-	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "kustomization.yaml", renderedFileName)
+	removedPathList := append(append([]string{}, ContentDirs...), "strategicmergepatches", "transformer-patch-files", "kustomization.yaml", renderedFileName)
 
 	for _, f := range removedPathList {
 		d := filepath.Join(tempDir, f)
@@ -417,4 +428,144 @@ resources:
 	}
 
 	return nil
+}
+
+// resolveTransformerFileRefs scans transformer YAML content for top-level "path" fields
+// that reference external files (e.g., PatchTransformer's "path" field). It copies those
+// files into tempDir and rewrites the path references to point to the copied locations,
+// so that kustomize can access them within its restricted root.
+// See https://github.com/helmfile/chartify/issues/90
+func (r *Runner) resolveTransformerFileRefs(transformerBytes []byte, transformerFileDir string, tempDir string) ([]byte, error) {
+	// Decode all YAML documents from the transformer content.
+	// A transformer file can be a single document, a list of documents, or multi-document YAML.
+	decoder := yaml.NewDecoder(bytes.NewReader(transformerBytes))
+
+	var docs []interface{}
+	for {
+		var doc interface{}
+		if err := decoder.Decode(&doc); err != nil {
+			if err == io.EOF {
+				break
+			}
+			// If we can't parse the YAML, return the original content unchanged and let kustomize handle it.
+			return transformerBytes, nil
+		}
+		docs = append(docs, doc)
+	}
+
+	if len(docs) == 0 {
+		return transformerBytes, nil
+	}
+
+	// Collect all transformer map nodes. This handles both single-document and
+	// list-of-documents formats. Maps are reference types in Go, so modifying
+	// them below will be reflected when re-encoding docs.
+	var allMaps []map[string]interface{}
+	for _, doc := range docs {
+		switch v := doc.(type) {
+		case map[string]interface{}:
+			allMaps = append(allMaps, v)
+		case []interface{}:
+			for _, item := range v {
+				if m, ok := item.(map[string]interface{}); ok {
+					allMaps = append(allMaps, m)
+				}
+			}
+		}
+	}
+
+	// Look for top-level "path" fields that reference existing files and copy them into tempDir.
+	patchFileCounter := 0
+	modified := false
+	for _, m := range allMaps {
+		pathStr, ok := m["path"].(string)
+		if !ok || pathStr == "" {
+			continue
+		}
+
+		// Resolve the referenced file's path. Kustomize resolves paths in transformers
+		// relative to the kustomization root (the user's CWD). We also try the transformer
+		// file's own directory as a fallback for colocated files.
+		resolvedPath, found := r.resolveTransformerPath(pathStr, transformerFileDir)
+		if !found {
+			continue
+		}
+
+		// Skip directories — the "path" field should reference a file.
+		// A directory match is likely coincidental (e.g., a "path" field that
+		// happens to match a directory name); leave it for kustomize to handle.
+		info, err := os.Stat(resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("checking file referenced by transformer path %q: %w", pathStr, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+
+		fileBytes, err := r.ReadFile(resolvedPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading file referenced by transformer path %q: %w", pathStr, err)
+		}
+
+		// Copy the referenced file into tempDir under a known subdirectory.
+		// The path in the transformer is rewritten relative to the kustomization root (tempDir),
+		// which is how kustomize resolves file references in transformers.
+		destRelPath := filepath.Join("transformer-patch-files", fmt.Sprintf("patchfile.%d.yaml", patchFileCounter))
+		destAbsPath := filepath.Join(tempDir, destRelPath)
+		if err := os.MkdirAll(filepath.Dir(destAbsPath), 0755); err != nil {
+			return nil, fmt.Errorf("creating directory for transformer patch file: %w", err)
+		}
+		if err := r.WriteFile(destAbsPath, fileBytes, 0644); err != nil {
+			return nil, fmt.Errorf("writing transformer patch file: %w", err)
+		}
+
+		r.Logf("Copied transformer path reference %q to %q", pathStr, destRelPath)
+
+		m["path"] = destRelPath
+		modified = true
+		patchFileCounter++
+	}
+
+	if !modified {
+		return transformerBytes, nil
+	}
+
+	// Re-encode the YAML with the updated path references.
+	var out bytes.Buffer
+	encoder := yaml.NewEncoder(&out)
+	encoder.SetIndent(2)
+	for _, doc := range docs {
+		if err := encoder.Encode(doc); err != nil {
+			return nil, fmt.Errorf("re-encoding transformer YAML after path resolution: %w", err)
+		}
+	}
+	if err := encoder.Close(); err != nil {
+		return nil, fmt.Errorf("closing transformer YAML encoder: %w", err)
+	}
+
+	return out.Bytes(), nil
+}
+
+// resolveTransformerPath resolves a "path" field from a transformer document to an
+// existing file. It tries the CWD first (matching kustomize's behavior where paths
+// are relative to the kustomization root), then falls back to the transformer file's
+// directory (for colocated files). Returns the resolved path and true if found.
+func (r *Runner) resolveTransformerPath(pathStr string, transformerFileDir string) (string, bool) {
+	if filepath.IsAbs(pathStr) {
+		exists, _ := r.Exists(pathStr)
+		return pathStr, exists
+	}
+
+	// Try CWD first — this is how kustomize resolves paths in transformers.
+	if exists, _ := r.Exists(pathStr); exists {
+		return pathStr, true
+	}
+
+	// Fall back to the transformer file's directory for colocated files.
+	candidate := filepath.Join(transformerFileDir, pathStr)
+	if exists, _ := r.Exists(candidate); exists {
+		return candidate, true
+	}
+
+	return pathStr, false
 }
