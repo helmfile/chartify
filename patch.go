@@ -46,6 +46,10 @@ func (r *Runner) Patch(tempDir string, generatedManifestFiles []string, opts ...
 		}
 	}
 
+	// Resolve the kustomize binary once so PATH lookups are not repeated for every check.
+	bin := r.kustomizeBin()
+	usingKubectl := bin == "kubectl kustomize"
+
 	r.Logf("patching files: %v", generatedManifestFiles)
 
 	// Detect if CRDs originally came from templates/ directory
@@ -192,19 +196,24 @@ resources:
 
 	renderedFileName := "all.patched.yaml"
 	renderedFile := filepath.Join(tempDir, renderedFileName)
-	r.Logf("Generating %s", renderedFile)
+	r.Logf("Generating %s", renderedFileName)
 
-	kustomizeArgs := []string{"build", tempDir, "--output", renderedFile}
+	kustomizeArgs := []string{"--output", renderedFile}
+
+	if !usingKubectl {
+		kustomizeArgs = append(kustomizeArgs, "build")
+	}
 
 	if u.EnableAlphaPlugins {
-		f, err := r.kustomizeEnableAlphaPluginsFlag()
+		f, err := r.kustomizeEnableAlphaPluginsFlag(usingKubectl)
 		if err != nil {
 			return err
 		}
 		kustomizeArgs = append(kustomizeArgs, f)
 	}
 
-	_, err := r.run(nil, r.kustomizeBin(), kustomizeArgs...)
+	// tempDir is the kustomize target, appended last (mirrors KustomizeBuild argument order).
+	_, err := r.run(nil, bin, append(kustomizeArgs, tempDir)...)
 	if err != nil {
 		return err
 	}
