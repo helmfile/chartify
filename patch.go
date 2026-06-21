@@ -25,6 +25,10 @@ type PatchOpts struct {
 
 	// SortOptions configures kustomize's sortOptions for resource ordering.
 	SortOptions *SortOptions
+
+	// ExtraArgs are extra arguments to pass to `kustomize build` command
+	// For example, ["--enable-exec"] for plugins like ksops
+	ExtraArgs []string
 }
 
 func (o *PatchOpts) SetPatchOption(opts *PatchOpts) error {
@@ -210,6 +214,11 @@ resources:
 			return err
 		}
 		kustomizeArgs = append(kustomizeArgs, f)
+	}
+
+	// Add any extra arguments provided by the user
+	if len(u.ExtraArgs) > 0 {
+		kustomizeArgs = append(kustomizeArgs, u.ExtraArgs...)
 	}
 
 	// tempDir is the kustomize target, appended last (mirrors KustomizeBuild argument order).

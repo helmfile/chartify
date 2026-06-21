@@ -80,6 +80,7 @@ type KustomizeBuildOpts struct {
 	Namespace          string
 	HelmBinary         string
 	SortOptions        *SortOptions
+	ExtraArgs          []string
 }
 
 func (o *KustomizeBuildOpts) SetKustomizeBuildOption(opts *KustomizeBuildOpts) error {
@@ -236,6 +237,11 @@ func (r *Runner) KustomizeBuild(srcDir string, tempDir string, opts ...Kustomize
 
 	if u.HelmBinary != "" {
 		kustomizeArgs = append(kustomizeArgs, "--helm-command="+u.HelmBinary)
+	}
+
+	// Add any extra arguments provided by the user
+	if len(u.ExtraArgs) > 0 {
+		kustomizeArgs = append(kustomizeArgs, u.ExtraArgs...)
 	}
 
 	out, err := r.runInDir(tempDir, bin, append(kustomizeArgs, tempDir)...)
