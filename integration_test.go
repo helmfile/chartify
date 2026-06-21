@@ -354,6 +354,31 @@ func TestIntegration(t *testing.T) {
 			EnableKustomizeAlphaPlugins: true,
 		},
 	})
+
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/kube_manifest_transformer_with_path$ ./
+	// Tests that kustomize transformers referencing external files via "path:" (e.g., PatchTransformer)
+	// have those files copied into the temp dir so kustomize can access them.
+	// See https://github.com/helmfile/chartify/issues/90
+	runTest(t, integrationTestCase{
+		description: "kube_manifest_transformer_with_path",
+		release:     "myapp",
+		chart:       "./testdata/kube_manifest_yml",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:   "log",
+					Chart:   repo + chartSuffix,
+					Version: "0.1.0",
+				},
+			},
+			Transformers: []string{
+				"./testdata/kube_manifest_transformer_with_path/transformer.yaml",
+			},
+			SetFlags: []string{
+				"--set", "log.enabled=true",
+			},
+		},
+	})
 }
 
 func setupHelmConfig(t *testing.T) {
