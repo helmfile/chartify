@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestPatch_PreserveCRDLocation tests that CRDs from templates/crds/ stay in templates/crds/
@@ -265,4 +267,94 @@ spec:
 	// Verify the CRDs would be placed in templates/crds/ (preserving location)
 	expectedCRDDir := filepath.Join(tempDir, "templates", "crds")
 	t.Logf("CRDs would be placed in: %s (original location preserved)", expectedCRDDir)
+}
+
+// TestParsePatchDocuments verifies parsing of single-doc and list-doc patch files.
+func TestParsePatchDocuments(t *testing.T) {
+	t.Run("single mapping document", func(t *testing.T) {
+		content := []byte("patch: |-\n  apiVersion: v1\n  kind: ConfigMap\ntarget:\n  kind: ConfigMap\n")
+		got, err := parsePatchDocuments(content)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Contains(t, got[0], "patch")
+		require.Contains(t, got[0], "target")
+	})
+
+	t.Run("list of mappings", func(t *testing.T) {
+		content := []byte("- patch: a\n  target:\n    kind: A\n- patch: b\n  target:\n    kind: B\n")
+		got, err := parsePatchDocuments(content)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+	})
+
+	t.Run("multi-document YAML stream", func(t *testing.T) {
+		content := []byte("patch: a\ntarget:\n  kind: A\n---\npatch: b\ntarget:\n  kind: B\n")
+		got, err := parsePatchDocuments(content)
+		require.NoError(t, err)
+		require.Len(t, got, 2, "both documents should be parsed")
+		require.Equal(t, "a", got[0]["patch"])
+		require.Equal(t, "b", got[1]["patch"])
+	})
+
+	t.Run("multi-document with null separator skipped", func(t *testing.T) {
+		content := []byte("---\npatch: a\ntarget:\n  kind: A\n")
+		got, err := parsePatchDocuments(content)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+	})
+
+	t.Run("list with non-map item returns error", func(t *testing.T) {
+		content := []byte("- patch: a\n- just a string\n")
+		_, err := parsePatchDocuments(content)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must be a YAML mapping")
+	})
+
+	t.Run("empty content returns error", func(t *testing.T) {
+		_, err := parsePatchDocuments([]byte(""))
+		require.Error(t, err)
+	})
+
+	t.Run("scalar content returns error", func(t *testing.T) {
+		_, err := parsePatchDocuments([]byte("just a string"))
+		require.Error(t, err)
+	})
+
+	t.Run("empty list returns error", func(t *testing.T) {
+		_, err := parsePatchDocuments([]byte("[]\n"))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty")
+	})
+}
+
+// TestMarshalPatchEntry verifies YAML encoding of a patch entry.
+func TestMarshalPatchEntry(t *testing.T) {
+	t.Run("preserves inline block scalar patch", func(t *testing.T) {
+		entry := map[string]interface{}{
+			"patch": "apiVersion: v1\nkind: ConfigMap\ndata:\n  key: val\n",
+			"target": map[string]interface{}{
+				"kind": "ConfigMap",
+			},
+		}
+		got, err := marshalPatchEntry(entry)
+		require.NoError(t, err)
+		// yaml.v3 uses block scalar style (either | or |- depending on trailing newlines) for multi-line strings.
+		require.Contains(t, got, "patch: |")
+		require.Contains(t, got, "apiVersion: v1")
+		require.Contains(t, got, "kind: ConfigMap")
+		require.Contains(t, got, "key: val")
+		require.Contains(t, got, "target:")
+	})
+
+	t.Run("preserves path field", func(t *testing.T) {
+		entry := map[string]interface{}{
+			"path": "some-file.yaml",
+			"target": map[string]interface{}{
+				"kind": "Deployment",
+			},
+		}
+		got, err := marshalPatchEntry(entry)
+		require.NoError(t, err)
+		require.Contains(t, got, "path: some-file.yaml")
+	})
 }
