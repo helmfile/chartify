@@ -23,7 +23,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Install Helm
-        uses: azure/setup-helm@v5.0.0
+        uses: azure/setup-helm@v5.0.1
         with:
           version: ${{ matrix.helm-version }}
 
