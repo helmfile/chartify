@@ -265,6 +265,21 @@ func TestIntegration(t *testing.T) {
 		chart:       "./testdata/charts/importvalues",
 	})
 
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/empty_render_no_op$ ./
+	// Tests that a chart whose templates all render to nothing (e.g. gated behind a falsy
+	// conditional) is treated as a no-op rather than causing an assertion error.
+	// See https://github.com/helmfile/chartify/issues/206
+	runTest(t, integrationTestCase{
+		description: "empty render no op",
+		release:     "myapp",
+		chart:       "./testdata/charts/emptychart",
+		opts: ChartifyOpts{
+			// OverrideNamespace ensures ReplaceWithRendered is called even though
+			// no Patches/Injectors are configured, exercising the empty-render path.
+			OverrideNamespace: "test-ns",
+		},
+	})
+
 	//
 	// Kubernets Manifests
 	//

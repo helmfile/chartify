@@ -132,6 +132,23 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		return nil, fmt.Errorf("unable to read helm output dir entries: %w", err)
 	}
 
+	// When the chart renders no resources, helm template --output-dir produces an empty
+	// directory. Treat this as a no-op: remove original content dirs so that subsequent
+	// helm processing also sees no resources, clean up the temp output dir, and return
+	// an empty file list with no error.
+	if len(helmOutputDirEntries) == 0 {
+		if err := os.RemoveAll(helmOutputDir); err != nil {
+			return nil, fmt.Errorf("cleaning up empty helm output dir: %v", err)
+		}
+		for _, d := range ContentDirs {
+			origDir := filepath.Join(chartPath, d)
+			if err := os.RemoveAll(origDir); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	}
+
 	// This directory contains templates/ and charts/SUBCHART/templates
 	var chartOutputDir string
 
