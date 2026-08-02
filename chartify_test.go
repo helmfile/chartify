@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -347,4 +348,81 @@ func TestUseHelmChartsInKustomize(t *testing.T) {
 			require.Equal(t, want, got)
 		})
 	}
+}
+
+// TestEmptyRenderCleansChartDependencies verifies that when a chart renders no
+// resources, the empty-render path still runs the Chart.yaml `dependencies`
+// cleanup and lock-file removal. Without that cleanup, a chart that declares
+// dependencies would leave Chart.yaml referencing subcharts whose charts/
+// directory was removed, causing a subsequent `helm template` to fail with
+// "found in Chart.yaml, but missing in charts/ directory".
+//
+// The integration harness cannot detect this because doTest always runs
+// `helm dependency build` on the output, which masks the missing-charts error;
+// this test does not, so the failure mode is directly observable.
+// See https://github.com/helmfile/chartify/issues/206
+func TestEmptyRenderCleansChartDependencies(t *testing.T) {
+	helmBin := "helm"
+	if h := os.Getenv("HELM_BIN"); h != "" {
+		helmBin = h
+	}
+	r := New(HelmBin(helmBin))
+	if !(r.IsHelm3() || r.IsHelm4()) {
+		t.Skip("test requires helm 3 or 4 (dependencies are stored in Chart.yaml)")
+	}
+
+	// Build a parent chart in a temp dir with a local file:// subchart dependency.
+	// Both parent and subchart render nothing (templates gated behind enabled=false),
+	// so `helm template --output-dir` produces an empty dir and ReplaceWithRendered
+	// takes the empty-render branch.
+	parentDir := t.TempDir()
+	subDir := filepath.Join(parentDir, "emptysub")
+
+	writeFile := func(path, content string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	}
+
+	// Subchart: renders nothing by default.
+	writeFile(filepath.Join(subDir, "Chart.yaml"),
+		"apiVersion: v2\nname: emptysub\ntype: application\nversion: 0.1.0\n")
+	writeFile(filepath.Join(subDir, "values.yaml"), "enabled: false\n")
+	writeFile(filepath.Join(subDir, "templates", "cm.yaml"),
+		"{{- if .Values.enabled }}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}-sub\n{{- end }}\n")
+
+	// Parent: renders nothing by default, depends on the subchart above.
+	writeFile(filepath.Join(parentDir, "Chart.yaml"),
+		"apiVersion: v2\nname: emptydep\ntype: application\nversion: 0.1.0\n"+
+			"dependencies:\n"+
+			"  - name: emptysub\n"+
+			"    repository: file://./emptysub\n"+
+			"    version: 0.1.0\n")
+	writeFile(filepath.Join(parentDir, "values.yaml"),
+		"enabled: false\nemptysub:\n  enabled: false\n")
+	writeFile(filepath.Join(parentDir, "templates", "cm.yaml"),
+		"{{- if .Values.enabled }}\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}-cm\n{{- end }}\n")
+
+	// OverrideNamespace forces ReplaceWithRendered to run.
+	outDir, err := r.Chartify("myapp", parentDir, WithChartifyOpts(&ChartifyOpts{
+		OverrideNamespace: "test-ns",
+	}))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(outDir) })
+
+	// After chartify, Chart.yaml must no longer declare dependencies, otherwise a
+	// subsequent `helm template` would fail with "found in Chart.yaml, but missing
+	// in charts/ directory: emptysub".
+	chartYaml, err := os.ReadFile(filepath.Join(outDir, "Chart.yaml"))
+	require.NoError(t, err)
+	require.NotContainsf(t, string(chartYaml), "dependencies:",
+		"Chart.yaml dependencies field should have been removed after an empty render; got:\n%s", chartYaml)
+
+	// Templating the chartified output must succeed and render nothing. NB: this does
+	// NOT run `helm dependency build` first, so any leftover Chart.yaml dependency
+	// would surface here as a "missing in charts/ directory" error.
+	cmd := exec.CommandContext(context.Background(), helmBin, "template", "myapp", outDir)
+	tmplOut, err := cmd.CombinedOutput()
+	require.NoErrorf(t, err, "helm template on chartified output failed: %s", tmplOut)
+	require.Empty(t, strings.TrimSpace(string(tmplOut)), "expected empty render, got:\n%s", tmplOut)
 }

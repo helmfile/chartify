@@ -1,0 +1,6 @@
+apiVersion: v2
+name: emptychart
+description: A Helm chart whose templates are all conditionally disabled, used to test empty render handling
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

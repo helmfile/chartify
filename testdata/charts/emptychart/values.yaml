@@ -1,0 +1,3 @@
+# When enabled is false (the default), this chart renders no resources,
+# which exercises the empty-render code path in chartify.
+enabled: false
