@@ -280,6 +280,24 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/empty_render_with_patch$ ./
+	// Tests that an empty render is a no-op success even when StrategicMergePatches are
+	// configured: the kustomize step is skipped because there are no rendered resources
+	// to patch. See https://github.com/helmfile/chartify/issues/206
+	runTest(t, integrationTestCase{
+		description: "empty render with patch",
+		release:     "myapp",
+		chart:       "./testdata/charts/emptychart",
+		opts: ChartifyOpts{
+			// StrategicMergePatches forces the kustomize-build path (needsKustomizeBuild)
+			// which in turn requires ReplaceWithRendered. With nothing rendered, Patch must
+			// be skipped rather than fed an empty resource list.
+			StrategicMergePatches: []string{
+				"./testdata/chart_patch/configmap.emptychart.strategic.yaml",
+			},
+		},
+	})
+
 	//
 	// Kubernets Manifests
 	//

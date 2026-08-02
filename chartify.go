@@ -502,7 +502,11 @@ func (r *Runner) Chartify(release, dirOrChart string, opts ...ChartifyOption) (s
 		}
 	}
 
-	if needsKustomizeBuild {
+	// When the chart rendered no resources, there is nothing for kustomize to build or
+	// patch. Skip the kustomize step entirely so an empty render is treated as a no-op
+	// success even when JsonPatches/StrategicMergePatches/Transformers are configured
+	// (the patches simply have no resources to apply to). See issue #206.
+	if needsKustomizeBuild && len(generatedManifestFiles) > 0 {
 		patchOpts := &PatchOpts{
 			JsonPatches:           u.JsonPatches,
 			StrategicMergePatches: u.StrategicMergePatches,

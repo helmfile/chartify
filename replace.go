@@ -132,89 +132,97 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 		return nil, fmt.Errorf("unable to read helm output dir entries: %w", err)
 	}
 
-	// When the chart renders no resources, helm template --output-dir produces an empty
-	// directory. Treat this as a no-op: remove original content dirs so that subsequent
-	// helm processing also sees no resources, clean up the temp output dir, and return
-	// an empty file list with no error.
+	// chartOutputDir is the rendered chart directory under helmOutputDir (e.g.
+	// ".../helmx.1.rendered/<chartname>"). It is left empty when the chart rendered
+	// nothing; in that case there are no rendered files to splice back into the chart.
+	var chartOutputDir string
+
 	if len(helmOutputDirEntries) == 0 {
+		// When the chart renders no resources (e.g. every template is gated behind a
+		// falsy conditional), `helm template --output-dir` produces an empty directory.
+		//
+		// Remove the chart's content dirs (templates/, charts/, crds/) so that subsequent
+		// helm processing also sees no resources, and clean up the temp output dir. We do
+		// NOT return here on purpose: the Chart.yaml `dependencies` field and the lock
+		// files below still need to be cleaned up to avoid downstream errors like
+		// "found in Chart.yaml, but missing in charts/ directory". writtenFiles stays
+		// empty, so an empty result list is ultimately returned to the caller.
+		r.Logf("chart %q rendered no resources; treating empty helm output as a no-op render", chartName)
 		if err := os.RemoveAll(helmOutputDir); err != nil {
-			return nil, fmt.Errorf("cleaning up empty helm output dir: %v", err)
+			return nil, fmt.Errorf("cleaning up empty helm output dir %s: %w", helmOutputDir, err)
 		}
+		for _, d := range ContentDirs {
+			origDir := filepath.Join(chartPath, d)
+			if err := os.RemoveAll(origDir); err != nil {
+				return nil, fmt.Errorf("removing %s after empty render: %w", origDir, err)
+			}
+		}
+	} else {
+		// This directory contains templates/ and charts/SUBCHART/templates
+		for _, e := range helmOutputDirEntries {
+			if !e.IsDir() {
+				return nil, fmt.Errorf("encountered unexpected dir entry at %s: it must be a dir but was not", e.Name())
+			}
+
+			if chartOutputDir != "" {
+				return nil, fmt.Errorf("assertion failed: there should be only one dir entry under the helm output dir %s", chartOutputDir)
+			}
+
+			chartOutputDir = filepath.Join(helmOutputDir, e.Name())
+		}
+
+		if !filepath.IsAbs(chartOutputDir) {
+			return nil, fmt.Errorf("assertion failed: unexpected dir entry %q it must be the abs path to the output directory", chartOutputDir)
+		}
+
+		// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
+		// - Replace charts/SUBCHART.tgz with rendered charts/SUBCHART/templates/*.yaml
+		// - Replace crds/*.yaml with rendered crds/*.yaml
 		for _, d := range ContentDirs {
 			origDir := filepath.Join(chartPath, d)
 			if err := os.RemoveAll(origDir); err != nil {
 				return nil, err
 			}
-		}
-		return nil, nil
-	}
 
-	// This directory contains templates/ and charts/SUBCHART/templates
-	var chartOutputDir string
-
-	for _, e := range helmOutputDirEntries {
-		if !e.IsDir() {
-			return nil, fmt.Errorf("encountered unexpected dir entry at %s: it must be a dir but was not", e.Name())
-		}
-
-		if chartOutputDir != "" {
-			return nil, fmt.Errorf("assertion failed: there should be only one dir entry under the helm output dir %s", chartOutputDir)
-		}
-
-		chartOutputDir = filepath.Join(helmOutputDir, e.Name())
-	}
-
-	if !filepath.IsAbs(chartOutputDir) {
-		return nil, fmt.Errorf("assertion failed: unexpected dir entry %q it must be the abs path to the output directory", chartOutputDir)
-	}
-
-	// - Replace templates/**/*.yaml with rendered templates/**/*.yaml
-	// - Replace charts/SUBCHART.tgz with rendered charts/SUBCHART/templates/*.yaml
-	// - Replace crds/*.yaml with rendered crds/*.yaml
-	for _, d := range ContentDirs {
-		origDir := filepath.Join(chartPath, d)
-		if err := os.RemoveAll(origDir); err != nil {
-			return nil, err
-		}
-
-		newDir := filepath.Join(chartOutputDir, d)
-		if _, err := os.Stat(newDir); err != nil {
-			if os.IsNotExist(err) {
-				continue
+			newDir := filepath.Join(chartOutputDir, d)
+			if _, err := os.Stat(newDir); err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, err
 			}
-			return nil, err
-		}
-		if err := os.Rename(newDir, origDir); err != nil {
-			return nil, err
-		}
-
-		usedDir := filepath.Join(chartPath, "files", d)
-		if err := os.RemoveAll(usedDir); err != nil && !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	lines := strings.Split(stdout, "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "wrote ") {
-			file := strings.Split(line, "wrote ")[1]
-
-			for _, d := range ContentDirs {
-				origDir := filepath.Join(chartPath, d)
-				newDir := filepath.Join(chartOutputDir, d)
-				file = strings.ReplaceAll(strings.ReplaceAll(file, "/", string(filepath.Separator)), newDir, origDir)
+			if err := os.Rename(newDir, origDir); err != nil {
+				return nil, err
 			}
 
-			writtenFiles[file] = true
+			usedDir := filepath.Join(chartPath, "files", d)
+			if err := os.RemoveAll(usedDir); err != nil && !os.IsNotExist(err) {
+				return nil, err
+			}
 		}
-	}
 
-	if len(writtenFiles) == 0 {
-		return nil, fmt.Errorf("invalid state: no files rendered")
-	}
+		lines := strings.Split(stdout, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "wrote ") {
+				file := strings.Split(line, "wrote ")[1]
 
-	if err := os.RemoveAll(helmOutputDir); err != nil {
-		return nil, fmt.Errorf("cleaning up unnecessary files after replace: %v", err)
+				for _, d := range ContentDirs {
+					origDir := filepath.Join(chartPath, d)
+					newDir := filepath.Join(chartOutputDir, d)
+					file = strings.ReplaceAll(strings.ReplaceAll(file, "/", string(filepath.Separator)), newDir, origDir)
+				}
+
+				writtenFiles[file] = true
+			}
+		}
+
+		if len(writtenFiles) == 0 {
+			return nil, fmt.Errorf("invalid state: no files rendered")
+		}
+
+		if err := os.RemoveAll(helmOutputDir); err != nil {
+			return nil, fmt.Errorf("cleaning up unnecessary files after replace: %w", err)
+		}
 	}
 
 	results := make([]string, 0, len(writtenFiles))
