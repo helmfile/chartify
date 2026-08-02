@@ -265,7 +265,7 @@ func TestIntegration(t *testing.T) {
 		chart:       "./testdata/charts/importvalues",
 	})
 
-	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/empty_render_no_op$ ./
+	// SAVE_SNAPSHOT=1 go test -run ^TestIntegration/empty_render_no_op$ ./
 	// Tests that a chart whose templates all render to nothing (e.g. gated behind a falsy
 	// conditional) is treated as a no-op rather than causing an assertion error.
 	// See https://github.com/helmfile/chartify/issues/206
@@ -280,7 +280,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/empty_render_with_patch$ ./
+	// SAVE_SNAPSHOT=1 go test -run ^TestIntegration/empty_render_with_patch$ ./
 	// Tests that an empty render is a no-op success even when StrategicMergePatches are
 	// configured: the kustomize step is skipped because there are no rendered resources
 	// to patch. See https://github.com/helmfile/chartify/issues/206
