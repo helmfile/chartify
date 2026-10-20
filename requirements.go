@@ -27,6 +27,9 @@ type ChartDependency struct {
 	Alias   string
 	Chart   string
 	Version string
+	// Condition is written to the dependency's `condition` field.
+	// When empty, it defaults to `<alias or chart name>.enabled`.
+	Condition string
 }
 
 // UpdateRequirements updates either Chart.yaml's dependencies(helm 3) or requirements.yaml(helm 2)

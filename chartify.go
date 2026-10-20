@@ -624,10 +624,15 @@ func (r *Runner) ReadAdhocDependencies(u *ChartifyOpts) ([]Dependency, error) {
 			condName = name
 		}
 
+		condition := d.Condition
+		if condition == "" {
+			condition = fmt.Sprintf("%s.enabled", condName)
+		}
+
 		deps = append(deps, Dependency{
 			Name:       name,
 			Repository: repoUrl,
-			Condition:  fmt.Sprintf("%s.enabled", condName),
+			Condition:  condition,
 			Alias:      d.Alias,
 			Version:    d.Version,
 		})

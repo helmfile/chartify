@@ -103,6 +103,48 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/adhoc_dependency_custom_condition$ ./
+	// See https://github.com/helmfile/chartify/pull/214
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency custom condition",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:     "log",
+					Chart:     repo + chartSuffix,
+					Version:   "0.1.0",
+					Condition: "global.log.enabled",
+				},
+			},
+			SetFlags: []string{
+				"--set", "global.log.enabled=true",
+			},
+		},
+	})
+
+	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/adhoc_dependency_custom_condition_disabled$ ./
+	// See https://github.com/helmfile/chartify/pull/214
+	runTest(t, integrationTestCase{
+		description: "adhoc dependency custom condition disabled",
+		release:     "myapp",
+		chart:       repo + "/db",
+		opts: ChartifyOpts{
+			AdhocChartDependencies: []ChartDependency{
+				{
+					Alias:     "log",
+					Chart:     repo + chartSuffix,
+					Version:   "0.1.0",
+					Condition: "global.log.enabled",
+				},
+			},
+			SetFlags: []string{
+				"--set", "global.log.enabled=false",
+			},
+		},
+	})
+
 	// SAVE_SNAPSHOT=1 go1.25 test -run ^TestIntegration/force_namespace$ ./
 	runTest(t, integrationTestCase{
 		description: "force namespace",
