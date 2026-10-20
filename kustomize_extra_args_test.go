@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -47,10 +48,8 @@ func newSpyRunner(t *testing.T, versionOut string) (*Runner, *[]spyCall) {
 // buildCall returns the first recorded invocation that runs a kustomize "build".
 func buildCall(calls []spyCall) (spyCall, bool) {
 	for _, c := range calls {
-		for _, a := range c.args {
-			if a == "build" {
-				return c, true
-			}
+		if slices.Contains(c.args, "build") {
+			return c, true
 		}
 	}
 	return spyCall{}, false

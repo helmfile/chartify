@@ -135,7 +135,7 @@ type ChartifyOpts struct {
 	// TemplateFuncs is the FuncMap used while rendering .gotmpl files in the target directory
 	TemplateFuncs template.FuncMap
 	// TemplateData is the data available via {{ . }} within .gotmpl files
-	TemplateData interface{}
+	TemplateData any
 
 	// TemplateArgs to pass Flags to helm template
 	TemplateArgs string

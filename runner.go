@@ -35,7 +35,7 @@ type Runner struct {
 	Exists      func(path string) (bool, error)
 
 	// Logf is the alternative log function used by chartify
-	Logf func(string, ...interface{})
+	Logf func(string, ...any)
 }
 
 type Option func(*Runner) error
@@ -61,7 +61,7 @@ func UseHelm4(u bool) Option {
 	}
 }
 
-func WithLogf(logf func(string, ...interface{})) Option {
+func WithLogf(logf func(string, ...any)) Option {
 	return func(r *Runner) error {
 		r.Logf = logf
 		return nil
@@ -259,6 +259,6 @@ func (r *Runner) captureBytes(binary string, args []string, dir string, envs map
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-func printf(format string, vars ...interface{}) {
+func printf(format string, vars ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", vars...)
 }

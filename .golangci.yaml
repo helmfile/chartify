@@ -21,6 +21,7 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - modernize
     - nakedret
     - reassign
     - revive
@@ -111,6 +112,7 @@ linters:
           - dupl
           - errcheck
           - funlen
+          - goconst
           - gocyclo
           - gosec
         path: _test\.go

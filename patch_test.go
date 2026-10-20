@@ -330,9 +330,9 @@ func TestParsePatchDocuments(t *testing.T) {
 // TestMarshalPatchEntry verifies YAML encoding of a patch entry.
 func TestMarshalPatchEntry(t *testing.T) {
 	t.Run("preserves inline block scalar patch", func(t *testing.T) {
-		entry := map[string]interface{}{
+		entry := map[string]any{
 			"patch": "apiVersion: v1\nkind: ConfigMap\ndata:\n  key: val\n",
-			"target": map[string]interface{}{
+			"target": map[string]any{
 				"kind": "ConfigMap",
 			},
 		}
@@ -347,9 +347,9 @@ func TestMarshalPatchEntry(t *testing.T) {
 	})
 
 	t.Run("preserves path field", func(t *testing.T) {
-		entry := map[string]interface{}{
+		entry := map[string]any{
 			"path": "some-file.yaml",
-			"target": map[string]interface{}{
+			"target": map[string]any{
 				"kind": "Deployment",
 			},
 		}
