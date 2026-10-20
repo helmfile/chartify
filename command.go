@@ -2,6 +2,7 @@ package chartify
 
 import (
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,9 +19,7 @@ func RunCommand(cmd string, args []string, dir string, stdout, stderr io.Writer,
 
 func mergeEnv(orig []string, new map[string]string) []string {
 	wanted := env2map(orig)
-	for k, v := range new {
-		wanted[k] = v
-	}
+	maps.Copy(wanted, new)
 	return map2env(wanted)
 }
 

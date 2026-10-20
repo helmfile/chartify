@@ -27,7 +27,7 @@ This guide helps agentic coding agents work effectively with the chartify codeba
 ### Linting and Formatting
 - **Format code**: `go fmt ./...`
 - **Vet code**: `go vet ./...` (42s, set timeout 120s+)
-- **NOTE**: golangci-lint config (.golangci.yaml) has compatibility issues with recent versions. Use `go fmt` and `go vet` for validation.
+- **Lint**: `golangci-lint run` (uses .golangci.yaml; CI runs v2.15.0). If local golangci-lint fails with "export data version" errors, reinstall it with the same Go toolchain as go.mod: `GOTOOLCHAIN=go1.27.2 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`
 
 ### Running the CLI
 - Basic usage: `./chartify -o OUTPUT_DIR RELEASE_NAME CHART_OR_MANIFEST_PATH`
@@ -122,11 +122,12 @@ Run these commands to ensure CI passes:
 ```bash
 go fmt ./...
 go vet ./...
+golangci-lint run
 CGO_ENABLED=0 go test ./...
 ```
 
 ### Prerequisites
-- Go 1.26.0+
+- Go 1.27.2+
 - Helm v4.3.1 (helm command)
 - Kustomize v5.8.0+ (kustomize command)
 

@@ -512,9 +512,9 @@ func (r *Runner) resolveTransformerFileRefs(transformerBytes []byte, transformer
 	// A transformer file can be a single document, a list of documents, or multi-document YAML.
 	decoder := yaml.NewDecoder(bytes.NewReader(transformerBytes))
 
-	var docs []interface{}
+	var docs []any
 	for {
-		var doc interface{}
+		var doc any
 		if err := decoder.Decode(&doc); err != nil {
 			if err == io.EOF {
 				break
@@ -532,14 +532,14 @@ func (r *Runner) resolveTransformerFileRefs(transformerBytes []byte, transformer
 	// Collect all transformer map nodes. This handles both single-document and
 	// list-of-documents formats. Maps are reference types in Go, so modifying
 	// them below will be reflected when re-encoding docs.
-	var allMaps []map[string]interface{}
+	var allMaps []map[string]any
 	for _, doc := range docs {
 		switch v := doc.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			allMaps = append(allMaps, v)
-		case []interface{}:
+		case []any:
 			for _, item := range v {
-				if m, ok := item.(map[string]interface{}); ok {
+				if m, ok := item.(map[string]any); ok {
 					allMaps = append(allMaps, m)
 				}
 			}
@@ -655,13 +655,13 @@ func (r *Runner) resolveTransformerPath(pathStr string, transformerFileDir strin
 //	    kind: Deployment
 //
 // See https://github.com/kubernetes-sigs/kustomize/blob/master/examples/inlinePatch.md
-func parsePatchDocuments(content []byte) ([]map[string]interface{}, error) {
+func parsePatchDocuments(content []byte) ([]map[string]any, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
 
-	var entries []map[string]interface{}
+	var entries []map[string]any
 
 	for {
-		var doc interface{}
+		var doc any
 		if err := decoder.Decode(&doc); err != nil {
 			if err == io.EOF {
 				break
@@ -670,18 +670,18 @@ func parsePatchDocuments(content []byte) ([]map[string]interface{}, error) {
 		}
 
 		switch v := doc.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			if v == nil {
 				// Skip null documents (e.g. from empty "---" separators).
 				continue
 			}
 			entries = append(entries, v)
-		case []interface{}:
+		case []any:
 			if len(v) == 0 {
 				return nil, fmt.Errorf("patches list is empty")
 			}
 			for i, item := range v {
-				m, ok := item.(map[string]interface{})
+				m, ok := item.(map[string]any)
 				if !ok {
 					return nil, fmt.Errorf("patches list item %d must be a YAML mapping, got %T", i, item)
 				}
@@ -705,7 +705,7 @@ func parsePatchDocuments(content []byte) ([]map[string]interface{}, error) {
 // marshalPatchEntry encodes a single kustomize patches entry as YAML suitable for
 // embedding as a list item under the "patches:" field of kustomization.yaml.
 // The returned string has no leading or trailing whitespace lines.
-func marshalPatchEntry(entry map[string]interface{}) (string, error) {
+func marshalPatchEntry(entry map[string]any) (string, error) {
 	buf := &bytes.Buffer{}
 	encoder := yaml.NewEncoder(buf)
 	encoder.SetIndent(2)

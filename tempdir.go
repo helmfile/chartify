@@ -42,7 +42,7 @@ func makeTempDir(release, chart string, opts *ChartifyOpts) string {
 	d := filepath.Join(workDir, id)
 
 	if os.Getenv(EnvVarDebug) != "" {
-		bs, _ := json.Marshal(map[string]interface{}{
+		bs, _ := json.Marshal(map[string]any{
 			"Release": release,
 			"Chart":   chart,
 			"Options": opts,
@@ -74,7 +74,7 @@ func GenerateID(release, chart string, opts *ChartifyOpts) (string, error) {
 
 	id = append(id, release)
 
-	hash, err := HashObject([]interface{}{release, chart, opts})
+	hash, err := HashObject([]any{release, chart, opts})
 	if err != nil {
 		return "", err
 	}
@@ -84,7 +84,7 @@ func GenerateID(release, chart string, opts *ChartifyOpts) (string, error) {
 	return strings.Join(id, "-"), nil
 }
 
-func HashObject(obj interface{}) (string, error) {
+func HashObject(obj any) (string, error) {
 	hash := fnv.New32a()
 
 	hash.Reset()

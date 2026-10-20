@@ -179,7 +179,7 @@ func TestDepCommandSelection(t *testing.T) {
 			ReadDir:   os.ReadDir,
 			Walk:      filepath.Walk,
 			Exists:    exists,
-			Logf:      func(string, ...interface{}) {},
+			Logf:      func(string, ...any) {},
 			MakeTempDir: func(release, chart string, opts *ChartifyOpts) string {
 				return ""
 			},

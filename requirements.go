@@ -20,7 +20,7 @@ type Dependency struct {
 	Version    string `yaml:"version,omitempty"`
 	// ImportValues holds the mapping of source values to parent key to be imported. Each item can be a
 	// string or pair of child/parent sublist items.
-	ImportValues []interface{} `yaml:"import-values,omitempty"`
+	ImportValues []any `yaml:"import-values,omitempty"`
 }
 
 type ChartDependency struct {
@@ -64,8 +64,8 @@ func (r *Runner) UpdateRequirements(replace bool, chartYamlPath, tempDir string,
 
 	if r.IsHelm3() || r.IsHelm4() {
 		type ChartMeta struct {
-			Dependencies []Dependency           `yaml:"dependencies,omitempty"`
-			Data         map[string]interface{} `yaml:",inline"`
+			Dependencies []Dependency   `yaml:"dependencies,omitempty"`
+			Data         map[string]any `yaml:",inline"`
 		}
 		var chartMeta ChartMeta
 

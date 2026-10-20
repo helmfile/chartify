@@ -201,8 +201,8 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 			}
 		}
 
-		lines := strings.Split(stdout, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(stdout, "\n")
+		for line := range lines {
 			if strings.HasPrefix(line, "wrote ") {
 				file := strings.Split(line, "wrote ")[1]
 
@@ -245,8 +245,8 @@ func (r *Runner) ReplaceWithRendered(name, chartName, chartPath string, o Replac
 	// should have been downloaded by `helm fetch` that run in an even earlier phase of chartify.
 	if r.IsHelm3() || r.IsHelm4() {
 		type ChartMeta struct {
-			Dependencies []Dependency           `yaml:"dependencies,omitempty"`
-			Data         map[string]interface{} `yaml:",inline"`
+			Dependencies []Dependency   `yaml:"dependencies,omitempty"`
+			Data         map[string]any `yaml:",inline"`
 		}
 		var chartMeta ChartMeta
 
