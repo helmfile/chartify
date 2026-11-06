@@ -28,7 +28,7 @@ jobs:
           version: ${{ matrix.helm-version }}
 
       - name: Install Kustomize
-        uses: syntaqx/setup-kustomize@v1
+        uses: syntaqx/setup-kustomize@v2
         with:
           kustomize-version: 5.8.0
 
